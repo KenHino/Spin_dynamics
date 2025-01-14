@@ -1,0 +1,24 @@
+name = "spinchem"
+version = "0.1.0"
+license = "license"
+author = "Damianko"
+maintainer = "damyanfr@gmail.com"
+copyright = "Copyright 2024, damyanfr"
+
+
+[library]
+source-dir="src"
+
+[dependencies]
+fsparse = { git="https://github.com/jalvesz/FSPARSE" }
+stdlib = { git="https://github.com/fortran-lang/stdlib", branch="stdlib-fpm" }
+
+[executable]
+name="spinchem"
+source-dir="app"
+main="main.f90"
+
+[test]
+name="runTests"
+source-dir="test"
+main="check.f90"
