@@ -6,11 +6,12 @@ module kroenecker
 
     implicit none
     private 
-    public :: kron, kron_iden, get_state
+    public :: kron, kron_vector, kron_iden
 
     interface kron
         procedure kron_dense
         procedure kron_sp
+        procedure kron_vector
     end interface kron
 
     interface  kron_iden
@@ -22,16 +23,23 @@ module kroenecker
 
     contains
 
+    ! Change all kroenecker to subroutines
+
     function kron_dense(A,B) result(C)
     ! Returns Kroenecker product of two dense matrices A and B
        complex(dp), intent(in)  :: A(:,:), B(:,:)
        complex(dp), allocatable :: C(:,:)
        
-       integer :: i = 0, j = 0, k = 0, l = 0
-       integer :: m = 0, n = 0, p = 0, q = 0
+       integer :: i, j, k, l
+       integer :: m, n, p, q
 
         allocate(C(size(A,1)*size(B,1),size(A,2)*size (B,2)))
         C = cmplx(0.0_dp, 0.0_dp, kind=dp)
+
+        m = 0
+        n = 0
+        p = 0
+        q = 0
 
         do i = 1,size(A,1)
             do j = 1,size(A,2)
@@ -50,7 +58,7 @@ module kroenecker
         type(COO_cdp_type), intent(in)  :: A, B
         type(COO_cdp_type)              :: C
 
-        integer :: i = 0, j = 0, k
+        integer :: i, j, k
 
         integer :: nrows, ncols
         integer :: nnz
@@ -74,7 +82,20 @@ module kroenecker
 
     end function kron_sp
 
-    
+    function kron_vector(A, B) result(C)
+       complex(dp), intent(in)  :: A(:), B(:)
+       complex(dp), allocatable :: C(:)
+
+       integer :: i  
+
+       allocate(C(size(A)*size(B)))
+
+       do i=1,size(A)
+            C((i-1)*size(B) + 1:i*size(B)) = A(i)*B
+       end do
+
+    end function kron_vector
+
     function kron_iden_right_dense(A,N) result(B)
     ! Returns Kroenecker product of matrix A with identity of size ZxZ
        complex(dp), intent(in)  :: A(:,:)
@@ -104,19 +125,23 @@ module kroenecker
        complex(dp), intent(in)  :: N(:,:)
        complex(dp), allocatable :: B(:,:)
        
-       integer :: i = 0, j = 0, k = 0, l = 0
-       integer :: m = 0, z = 0, p = 0, q = 0
+       integer :: i
+       integer :: m, z, p
 
 
         allocate(B(size(N,1)*A,size(N,2)*A))
        
         B = cmplx(0.0_dp, 0.0_dp, kind=dp)  
        
+        m = 0
+        z = 0
+        p = 0
+
         do i = 1,A
-                z=A*(i-1) + 1
-                m=z+size(N,dim=1) - 1
-                p=z+size(N,dim=2) - 1
-                B(z:m,z:p) = N
+            z=size(N,dim=1)*(i-1) + 1
+            m=z+size(N,dim=1) - 1
+            p=z+size(N,dim=2) - 1
+            B(z:m,z:p) = N
         end do
        
     end function kron_iden_left_dense
@@ -127,7 +152,7 @@ module kroenecker
         integer, intent(in)             :: N
         type(COO_cdp_type)              :: B
 
-        integer :: i = 0, j = 0, k = 1
+        integer :: i, j
 
         integer :: nrows, ncols
         integer :: nnz
@@ -152,7 +177,7 @@ module kroenecker
         type(COO_cdp_type), intent(in) :: N
         type(COO_cdp_type)             :: B
 
-        integer :: i = 0, j = 0, k = 1
+        integer :: i
 
         integer :: nrows, ncols
         integer :: nnz
@@ -172,11 +197,5 @@ module kroenecker
        
     end function kron_iden_left_sp
 
-    subroutine get_state(el_state, sample, Z)
-
-        complex(dp), intent(in) :: el_state(4)
-        complex(dp), intent(in) :: sample(:,:)
-
-    end subroutine get_state
 
 end module kroenecker 

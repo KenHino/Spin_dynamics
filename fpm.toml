@@ -12,6 +12,7 @@ source-dir="src"
 [dependencies]
 fsparse = { git="https://github.com/jalvesz/FSPARSE" }
 stdlib = { git="https://github.com/fortran-lang/stdlib", branch="stdlib-fpm" }
+openmp='*'
 
 [executable]
 name="spinchem"

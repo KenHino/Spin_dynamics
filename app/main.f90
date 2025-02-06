@@ -1,69 +1,82 @@
 program main
-    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
     use spinop
     use hamiltonian
+    use variables
+    use class_observables
     use utils
-    use finer
-    use system
-    use stdlib_sparse
-    use sph
-    use kroenecker
+    use dynamics
+    use stdlib_stats_distribution_normal
+    ! use stdlib_random, only: random_seed
+    use m_random
+    use moments
+    use symmetry
     implicit none
 
-    character(len=50)     :: input_file
-    type(spinsys) :: sys
-    type(spinsys) :: sim
+    ! integer :: N = 3
+    ! real(dp) :: a(3), w(3)
+    ! real(dp) :: a1(2), w2(2)
+
+    ! a = 1.0_dp
+    ! w = 1.0_dp
+    ! call qrule(N, w, a, 2, a1, w2)
+
+
+    character(:), allocatable :: input_file
+    character(:), allocatable :: output_folder
+    character(:), allocatable :: folder
+    character(len=16) :: guz
+    type(sys_param)           :: sys
+    type(sim_param)           :: sim
+    type(observables)         :: res
+    type(RNG_t)               :: rng
+    type(COO_cdp_type)        :: H_coo
+    type(CSR_cdp_type)        :: H
+
+    integer(8) :: seed(2)
+    integer :: i
+
     real(dp), allocatable :: a(:)
-    complex(dp) :: j, H(8,8)
-    integer :: i 
-    complex(dp), dimension(:,:), allocatable :: s_x, s_y, s_z, id
-    complex(dp), allocatable :: sprod(:,:)
-    type(COO_cdp_type)  :: Hsp
-    type(COO_cdp_type)  :: Sxsp, Szsp, prod
+    real(dp), allocatable :: w(:)
+    integer :: N
+    integer :: M
+    real(dp), allocatable :: a_bar(:)
+    real(dp), allocatable :: a2_bar(:)
+    real(dp), allocatable :: w_bar(:)
+    integer, allocatable :: n_bar(:)
 
-    ! j%re=1.0_dp
-    ! print*, sys%B
+    integer ::  n_trial(4)
+    integer, allocatable ::  k_trial(:,:)
 
-    ! call getSpinop(2, S_x, S_y, S_z)
+    n_trial = [4, 3, 3, 4]
 
-    ! call dense2coo(S_x, Sxsp)
-    ! call dense2coo(S_z, Szsp)
+    ! call cartesian_product(n_trial, k_trial)
 
-    ! prod = kron_iden(Szsp, 2*)
-
-    ! call coo2dense(prod, sprod)    
-
-    ! call print_matrix(sprod)
-    ! print('(F0.0,SP,F0.0,"i")'), 
-
-
-
-    ! call print_matrix(kron(s_z, s_x+s_y+s_z))
-
-    ! H = kron_iden(S_x, 2)
-    ! H = kron_iden(S_x, 1)
-
+    folder = '/home/damianko/fpm/spinchem/trial_sym'
+    ! folder = '/home/damianko/fpm/spinchem/cpf_ini'
     input_file = '/home/damianko/fpm/spinchem/input.ini'
-    sys = spinsys_init(input_file)
+    call read_inp(input_file, sys, sim)
 
-    Hsp = getHsp(sys)
+    call rng%set_random_seed()
+    seed = rng%s
+    
+    do i=1,size(sim%B)
+!         print*, sim%B(i)
 
-    ! print*, Hsp%data(1:8)
-    ! print*, 
-    ! call print_matrix(Hsp%index(:,1:8))
+        call rng%set_seed(seed)
 
+        ! Calculate Larmor frequencies of both electrons in mT units
+        sys%e1%w = (sys%e1%g/g_e)*sim%B(i)
+        sys%e2%w = (sys%e2%g/g_e)*sim%B(i)
 
-    ! Hsp = getHsp(sys)
+        write(guz,'(F0.3)') sim%B(i) ! converting integer to string using a 'internal file'
 
-    ! call print_matrix(sys%e1%A(1,:,:)) 
+        output_folder = folder // '/' // trim(guz)  
 
-    ! print*, size(sys%e2%g_I)
+        call system(' mkdir ' // output_folder)
 
-    ! H = getHfull(sys)
-
-    ! H = getHi(sys%e1)
-
-    ! call print_matrix(H)
-    ! call print_matrix(getHi(sys%e1))
+        call symmetrised_dynamics(sys, sim, rng, res, output_folder)
+        ! call trace_sampling(sys, sim, rng, res, output_folder)
+    end do
 
 end program main

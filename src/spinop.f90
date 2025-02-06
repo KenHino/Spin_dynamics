@@ -5,34 +5,34 @@ module spinop
 
     implicit none
     private 
-    public :: getSpinop
+    public :: get_spinop
 
-    interface getSpinop
-        ! Construct Sx,Sy and Sz operators for particle with spin multiplicity g_I 
-        procedure getSpinop_dense
-        procedure getSpinop_sp
-    end interface getSpinop
+    interface get_spinop
+    ! Construct Sx,Sy,Sz,S+ and S- operators for particle with spin multiplicity g_I 
+        procedure get_spinop_dense
+        procedure get_spinop_sp
+    end interface get_spinop
 
     contains
 
-    subroutine getSpinop_dense(g_I, Sx, Sy, Sz)
+    subroutine get_spinop_dense(g_I, Sx, Sy, Sz)
         integer, intent(in)                     :: g_I
         complex(dp), allocatable, intent(inout) :: Sx(:, :), Sy(:, :), Sz(:, :) 
-
+        
         real(dp)              :: S 
         real(dp), allocatable :: Ms(:)
         integer               :: i
 
         S = (real(g_I, kind=dp)-1.0_dp)/2.0_dp
 
-        allocate(Sx(g_I, g_I))
-        allocate(Sy(g_I, g_I))
-        allocate(Sz(g_I, g_I))
-        allocate(Ms(g_I))
+        if (allocated(Sz)) then
+            deallocate(Sx, Sy, Sz)
+        end if 
 
-        Sx = cmplx(0.0_dp, 0.0_dp)
-        Sy = cmplx(0.0_dp, 0.0_dp)
-        Sz = cmplx(0.0_dp, 0.0_dp)
+        allocate(Sx(g_I, g_I), source=(0.0_dp, 0.0_dp))
+        allocate(Sy(g_I, g_I), source=(0.0_dp, 0.0_dp))
+        allocate(Sz(g_I, g_I), source=(0.0_dp, 0.0_dp))
+        allocate(Ms(g_I))
 
         Ms(1) = S
         do i = 2,g_I
@@ -53,23 +53,45 @@ module spinop
             Sz(i, i) = Ms(i)
         end do
 
-    end subroutine getSpinop_dense
+    end subroutine get_spinop_dense
 
- 
-    subroutine getSpinop_sp(g_I, Sx, Sy, Sz)
-        integer, intent(in)               :: g_I
-        type(COO_cdp_type), intent(inout) :: Sx, Sy, Sz 
+    subroutine get_spinop_sp(mult, Sz, Sp, Sm)
+        integer, intent(in)               :: mult
+        type(COO_cdp_type), intent(inout) :: Sz, Sp, Sm 
 
-        complex(dp), allocatable :: Sx_dense(:, :), Sy_dense(:, :), Sz_dense(:, :) 
+        real(dp)              :: S 
+        real(dp), allocatable :: Ms(:)
+        integer               :: i
 
-        call getSpinop_dense(g_I, Sx_dense, Sy_dense, Sz_dense)
+        if (allocated(Sz%data)) then
+            deallocate(Sz%data, Sp%data, Sm%data)
+            deallocate(Sz%index, Sp%index, Sm%index)
+        end if 
 
-        call dense2coo(Sx_dense, Sx)
-        call dense2coo(Sy_dense, Sy)
-        call dense2coo(Sz_dense, Sz)
+        S = (real(mult, kind=dp)-1.0_dp)/2.0_dp
 
-    end subroutine getSpinop_sp
+        call Sz%malloc(num_rows=mult, num_cols=mult, nnz=mult)
+        call Sp%malloc(num_rows=mult, num_cols=mult, nnz=mult-1)
+        call Sm%malloc(num_rows=mult, num_cols=mult, nnz=mult-1)
+        allocate(Ms(mult))
+
+        Sz%data(1) = cmplx(S, 0.0_dp, kind=dp)
+        Sz%index(:, 1) = 1 
+        
+        do i=2,mult
+            Sz%data(i) = Sz%data(i-1) - (1.0_dp, 0.0_dp)
+            Sz%index(:, i) = i
+
+            Sp%data(i-1) = sqrt(S*(S+1) - Sz%data(i)*Sz%data(i-1))
+            Sp%index(1,i-1) = i-1  
+            Sp%index(2,i-1) = i
+
+            Sm%data(i-1) = sqrt(S*(S+1) - Sz%data(i)*Sz%data(i-1))
+            Sm%index(1,i-1) = i  
+            Sm%index(2,i-1) = i-1
+        end do
 
 
+    end subroutine get_spinop_sp
 
 end module spinop
