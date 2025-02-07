@@ -25,10 +25,11 @@ module symmetry
         real(dp), allocatable          :: a1_bar(:), a2_bar(:)
         integer, allocatable           :: n1_bar(:), n2_bar(:)
         integer, allocatable           :: K1(:,:), K2(:,:) 
-        integer                        :: Z_current
-        integer                        :: w_k
+        integer(i8)                    :: Z_current
+        integer(i8)                    :: w_k
         type(sys_param)                :: sys_new
         type(observables), allocatable :: res_current(:)
+        integer(i8) :: sum = 0
 
         integer :: i, j
 
@@ -74,8 +75,7 @@ module symmetry
             do i=1,size(K1,dim=2)
                 print*, 'starting new process'     
                 w_k = weight(n1_bar, K1(:,i)) * weight(n2_bar, K2(:,j))
-                Z_current = product(K1(:,i)) * product(K2(:,j))
-
+                Z_current = int(product(K1(:,i)), kind=i8) * int(product(K2(:,j)), kind=i8)
                 if (real(w_k*Z_current, kind=dp)/real(Z, kind=dp) > sim%block_tol) then
 
                     call reduce_system(sys, K1(:,i), a1_bar, K2(:,j), a2_bar, sys_new)
@@ -94,6 +94,7 @@ module symmetry
             end do
             !$OMP END PARALLEL DO
         end do
+
 
         do i=1,size(K1,dim=2)
             call res%update(res_current(i))        
@@ -174,14 +175,15 @@ module symmetry
     function weight(n, k) result(w)
         integer, intent(in) :: n(:)
         integer, intent(in) :: k(:)
-        integer :: w
+        integer(i8) :: w
 
-        integer :: w_i
+        integer(i8) :: w_i
         integer  :: i
 
         w = 1
         do i=1,size(n)
-            w_i = (nCr(n(i), (n(i) + k(i) - 1)/2)*k(i)*2)/(n(i)+k(i)+1)                        
+            w_i = nCr(n(i), (n(i) + k(i) - 1)/2) * int(k(i)*2, kind=i8)
+            w_i = w_i/int(n(i)+k(i)+1, kind=i8)                        
             w = w*w_i
         end do
 
@@ -190,17 +192,17 @@ module symmetry
     function nCr(n, r) result(C)
         integer, intent(in) :: n
         integer, intent(in) :: r
-        integer             :: C
+        integer(i8)         :: C
 
-        integer :: numer
-        integer :: denom
-        integer :: i
+        integer(i8) :: numer
+        integer(i8) :: denom
+        integer(i8) :: i
 
-        numer = 1
-        denom = 1
+        numer = 1_i8
+        denom = 1_i8
         
-        do i=1,min(n-r,r)
-            numer = numer*(n-i+1)
+        do i=1,int(min(n-r,r), kind=i8)
+            numer = numer*(int(n, kind=i8)-i+1_i8)
             denom = denom*i
         end do
 

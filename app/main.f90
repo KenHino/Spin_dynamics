@@ -52,10 +52,13 @@ program main
 
     ! call cartesian_product(n_trial, k_trial)
 
-    folder = '/home/damianko/fpm/spinchem/trial_sym'
+    folder = '/home/damianko/fpm/spinchem/data/trial_sym'
     ! folder = '/home/damianko/fpm/spinchem/cpf_ini'
-    input_file = '/home/damianko/fpm/spinchem/input.ini'
+    input_file = '/home/damianko/fpm/spinchem/data/many.ini'
     call read_inp(input_file, sys, sim)
+
+    call get_command_argument(1, input_file)
+    call get_command_argument(2, folder)
 
     call rng%set_random_seed()
     seed = rng%s
