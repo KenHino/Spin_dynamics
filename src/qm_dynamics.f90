@@ -22,34 +22,33 @@ module dynamics
 
     contains
 
-    subroutine exact_dynamics(sys, sim, res, output_folder)
+    subroutine exact_dynamics(sys, sim, res)
     ! Run quantum mechanical dynamics with full nuclear Hilber space
         type(sys_param), intent(in)              :: sys 
-        type(sim_param), intent(in)              :: sim 
+        type(sim_param), intent(inout)           :: sim 
         type(observables), intent(out)           :: res 
-        character(:), allocatable, intent(inout) :: output_folder ! Folder where all experimental data will be saved
 
-        type(COO_cdp_type)         :: H_coo
-        type(CSR_cdp_type)         :: H
-        type(observables)          :: sample_obs
-        integer                    :: N_steps
-        complex(dp)                :: theta(4) ! init electronic wavefunction
-        complex(dp), allocatable   :: Z_ket(:) ! init nuclear wavefunction
-        complex(dp), allocatable   :: psi(:)   ! theta X Z_ket
-        integer                    :: Z        ! size of nuclear Hilbert space
-        integer                    :: N        ! size of combined Hilbert space
-        real(dp)                   :: t
-        real(dp)                   :: init_pop(4)
-        complex(dp)                :: c(sim%N_krylov)
-        real(dp)                   :: c2  
-        real(dp)                   :: c_m2  
-        complex(dp)                :: A(sim%N_krylov, sim%N_krylov) 
-        complex(dp), allocatable   :: A_exp(:, :)
-        complex(dp)                :: P_S(sim%N_krylov, sim%N_krylov) 
-        complex(dp)                :: P_Tp(sim%N_krylov, sim%N_krylov) 
-        complex(dp)                :: P_T0(sim%N_krylov, sim%N_krylov) 
-        complex(dp)                :: P_Tm(sim%N_krylov, sim%N_krylov) 
-        complex(dp), allocatable   :: Q(:, :) 
+        type(COO_cdp_type)       :: H_coo
+        type(CSR_cdp_type)       :: H
+        type(observables)        :: sample_obs
+        integer                  :: N_steps
+        complex(dp)              :: theta(4) ! init electronic wavefunction
+        complex(dp), allocatable :: Z_ket(:) ! init nuclear wavefunction
+        complex(dp), allocatable :: psi(:)   ! theta X Z_ket
+        integer                  :: Z        ! size of nuclear Hilbert space
+        integer                  :: N        ! size of combined Hilbert space
+        real(dp)                 :: t
+        real(dp)                 :: init_pop(4)
+        complex(dp)              :: c(sim%N_krylov)
+        real(dp)                 :: c2  
+        real(dp)                 :: c_m2  
+        complex(dp)              :: A(sim%N_krylov, sim%N_krylov) 
+        complex(dp), allocatable :: A_exp(:, :)
+        complex(dp)              :: P_S(sim%N_krylov, sim%N_krylov) 
+        complex(dp)              :: P_Tp(sim%N_krylov, sim%N_krylov) 
+        complex(dp)              :: P_T0(sim%N_krylov, sim%N_krylov) 
+        complex(dp)              :: P_Tm(sim%N_krylov, sim%N_krylov) 
+        complex(dp), allocatable :: Q(:, :) 
 
         integer  :: i, j, k
     
@@ -125,39 +124,38 @@ module dynamics
 
         call res%scale(1.0_dp/real(Z, kind=dp))
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        call res%output(output_folder)
+        call res%output(sim%output_folder)
 
     end subroutine exact_dynamics
 
-    subroutine trace_sampling(sys, sim, rng, res, output_folder)
+    subroutine trace_sampling(sys, sim, rng, res)
     ! Run quantum mechanical dynamics with trace sampling
         type(sys_param), intent(in)              :: sys 
-        type(sim_param), intent(in)              :: sim 
+        type(sim_param), intent(inout)           :: sim 
         type(RNG_t), intent(inout)               :: rng
         type(observables), intent(out)           :: res 
-        character(:), allocatable, intent(inout) :: output_folder ! Folder where all experimental data will be saved
 
-        type(COO_cdp_type)         :: H_coo
-        type(CSR_cdp_type)         :: H
-        type(observables)          :: sample_obs
-        integer                    :: N_steps
-        complex(dp)                :: theta(4) ! init electronic wavefunction
-        complex(dp), allocatable   :: Z_ket(:) ! init nuclear wavefunction
-        complex(dp), allocatable   :: psi(:)   ! theta X Z_ket
-        integer                    :: Z        ! size of nuclear Hilbert space
-        integer                    :: N        ! size of combined Hilbert space
-        real(dp)                   :: t
-        real(dp)                   :: init_pop(4)
-        complex(dp)                :: c(sim%N_krylov)
-        real(dp)                   :: c2  
-        real(dp)                   :: c_m2  
-        complex(dp)                :: A(sim%N_krylov, sim%N_krylov) 
-        complex(dp), allocatable   :: A_exp(:, :)
-        complex(dp)                :: P_S(sim%N_krylov, sim%N_krylov) 
-        complex(dp)                :: P_Tp(sim%N_krylov, sim%N_krylov) 
-        complex(dp)                :: P_T0(sim%N_krylov, sim%N_krylov) 
-        complex(dp)                :: P_Tm(sim%N_krylov, sim%N_krylov) 
-        complex(dp), allocatable   :: Q(:, :) 
+        type(COO_cdp_type)       :: H_coo
+        type(CSR_cdp_type)       :: H
+        type(observables)        :: sample_obs
+        integer                  :: N_steps
+        complex(dp)              :: theta(4) ! init electronic wavefunction
+        complex(dp), allocatable :: Z_ket(:) ! init nuclear wavefunction
+        complex(dp), allocatable :: psi(:)   ! theta X Z_ket
+        integer                  :: Z        ! size of nuclear Hilbert space
+        integer                  :: N        ! size of combined Hilbert space
+        real(dp)                 :: t
+        real(dp)                 :: init_pop(4)
+        complex(dp)              :: c(sim%N_krylov)
+        real(dp)                 :: c2  
+        real(dp)                 :: c_m2  
+        complex(dp)              :: A(sim%N_krylov, sim%N_krylov) 
+        complex(dp), allocatable :: A_exp(:, :)
+        complex(dp)              :: P_S(sim%N_krylov, sim%N_krylov) 
+        complex(dp)              :: P_Tp(sim%N_krylov, sim%N_krylov) 
+        complex(dp)              :: P_T0(sim%N_krylov, sim%N_krylov) 
+        complex(dp)              :: P_Tm(sim%N_krylov, sim%N_krylov) 
+        complex(dp), allocatable :: Q(:, :) 
 
         integer  :: i, j, k
     
@@ -231,7 +229,7 @@ module dynamics
         ! Average observables
         call res%scale(1.0_dp/real(sim%N_samples, kind=dp))
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        call res%output(output_folder)
+        call res%output(sim%output_folder)
 
     end subroutine trace_sampling
 
@@ -350,7 +348,7 @@ module dynamics
     end subroutine convert_to_krylov
 
     subroutine exact_dynamics_dense(sys, sim, res, output_folder)
-    ! Run quantum mechanical dynamics with trace sampling
+    ! Run quantum mechanical dynamics with dense matrices (only present for testing purposes)
         type(sys_param), intent(in)              :: sys 
         type(sim_param), intent(in)              :: sim 
         type(observables), intent(out)           :: res 

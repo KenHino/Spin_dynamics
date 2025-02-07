@@ -13,15 +13,6 @@ program main
     use symmetry
     implicit none
 
-    ! integer :: N = 3
-    ! real(dp) :: a(3), w(3)
-    ! real(dp) :: a1(2), w2(2)
-
-    ! a = 1.0_dp
-    ! w = 1.0_dp
-    ! call qrule(N, w, a, 2, a1, w2)
-
-
     character(:), allocatable :: input_file
     character(:), allocatable :: output_folder
     character(:), allocatable :: folder
@@ -48,17 +39,13 @@ program main
     integer ::  n_trial(4)
     integer, allocatable ::  k_trial(:,:)
 
-    n_trial = [4, 3, 3, 4]
+    input_file = '/home/damianko/fpm/spinchem/input.ini'
 
-    ! call cartesian_product(n_trial, k_trial)
-
-    folder = '/home/damianko/fpm/spinchem/data/trial_sym'
-    ! folder = '/home/damianko/fpm/spinchem/cpf_ini'
-    input_file = '/home/damianko/fpm/spinchem/data/many.ini'
+    ! call get_command_argument(1, guz)
+    ! input_file = trim(guz)
+    ! call get_command_argument(2, folder)
+    
     call read_inp(input_file, sys, sim)
-
-    call get_command_argument(1, input_file)
-    call get_command_argument(2, folder)
 
     call rng%set_random_seed()
     seed = rng%s
@@ -74,12 +61,12 @@ program main
 
         write(guz,'(F0.3)') sim%B(i) ! converting integer to string using a 'internal file'
 
-        output_folder = folder // '/' // trim(guz)  
+        folder = sim%output_folder // '/' // trim(guz)  
 
-        call system(' mkdir ' // output_folder)
+        call system(' mkdir ' // folder)
 
-        call symmetrised_dynamics(sys, sim, rng, res, output_folder)
-        ! call trace_sampling(sys, sim, rng, res, output_folder)
+        call symmetrised_dynamics(sys, sim, rng, res)
+!         ! call trace_sampling(sys, sim, rng, res, output_folder)
     end do
 
 end program main

@@ -12,13 +12,12 @@ module symmetry
 
     contains
     
-    subroutine symmetrised_dynamics(sys, sim, rng, res, output_folder)
+    subroutine symmetrised_dynamics(sys, sim, rng, res)
     ! Run quantum mechanical dynamics with trace sampling
         type(sys_param), intent(in)              :: sys 
         type(sim_param), intent(inout)           :: sim 
         type(RNG_t), intent(inout)               :: rng
         type(observables), intent(out)           :: res 
-        character(:), allocatable, intent(inout) :: output_folder ! Folder where all experimental data will be saved
 
         integer(i8)                    :: Z
         integer                        :: N_steps
@@ -33,10 +32,8 @@ module symmetry
 
         integer :: i, j
 
-
         ! Need to use 64-bit integer to calculate Z for large number of spins
         Z = product(int(sys%e1%g_I,kind=i8))*product(int(sys%e2%g_I,kind=i8))
-        print*, real(Z, kind=dp)
 
         N_steps = ceiling((sim%t_end+sim%dt)/sim%dt)
         call res%malloc(N_steps+1)
@@ -81,9 +78,9 @@ module symmetry
                     call reduce_system(sys, K1(:,i), a1_bar, K2(:,j), a2_bar, sys_new)
 
                     if (Z_current <= sim%N_samples) then
-                        call exact_dynamics(sys_new, sim, res_current(i), output_folder)
+                        call exact_dynamics(sys_new, sim, res_current(i))
                     else 
-                        call trace_sampling(sys_new, sim, rng, res_current(i), output_folder)
+                        call trace_sampling(sys_new, sim, rng, res_current(i))
                     end if
                     ! Weight result of simulation 
                     call res_current(i)%scale(real(w_k*Z_current, kind=dp))
@@ -102,7 +99,7 @@ module symmetry
 
         call res%scale(1.0_dp/real(Z, kind=dp))
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        call res%output(output_folder)
+        call res%output(sim%output_folder)
 
     end subroutine symmetrised_dynamics
 

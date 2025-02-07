@@ -13,7 +13,6 @@ module variables
                read_inp,    & 
                electron_init
                 
-
     real(dp), parameter :: g_e = 2.002319_dp
     real(dp), parameter :: gamma_e = 176.0_dp 
 
@@ -48,6 +47,7 @@ module variables
         integer                   :: M1               ! Number of symmetry blocks
         integer                   :: M2               ! Number of symmetry blocks
         real(dp)                  :: block_tol        ! Tolerance for discarding symmetry blocks
+        character(:), allocatable :: output_folder    ! spin state in which radical pair is formed
     end type sim_param
 
     contains
@@ -58,9 +58,12 @@ module variables
         type(sys_param), intent(out)   :: sys  
         type(sim_param), intent(out)   :: sim  
 
+        real(dp)            :: D_tmp(9)
         character(len=1000) :: tmp
-        type(file_ini) :: fini
-        real(dp)       :: D_tmp(9)
+        character(len=500)  :: tmp2
+        type(file_ini)      :: fini
+        logical             :: dirExists
+        
         integer :: i
 
         call fini%load(filename=trim(filename))
@@ -89,6 +92,11 @@ module variables
         call fini%get(section_name='simulation parameters', option_name='M1', val=sim%M1)
         call fini%get(section_name='simulation parameters', option_name='M2', val=sim%M2)
         call fini%get(section_name='simulation parameters', option_name='block_tolerance', val=sim%block_tol)
+        call fini%get(section_name='simulation parameters', option_name='output_folder', val=tmp2)
+        sim%output_folder = trim(tmp2)
+        inquire(file=sim%output_folder // '/.', exist=dirExists)
+        if (.not. dirExists) stop 'Error: Output folder does not exist.'
+
 
         call electron_init(fini, 1, sys%e1)
         call electron_init(fini, 2, sys%e2)
@@ -134,31 +142,55 @@ module variables
         integer, intent(in)         :: el_number ! must 
         type(electron), intent(out) :: e         ! Electron must be 1 or 2
  
-        real(dp)          :: A_tmp(9)   ! Variable used for parsing individual hyperfines
-        character(len=20) :: el_section 
-        character(len=10) :: a_option 
-        integer           :: err
-        integer           :: i
+        integer, allocatable :: mult_I(:)
+        integer, allocatable :: N_I(:)
+        real(dp)             :: A_tmp(9)   ! Variable used for parsing individual hyperfines
+        character(len=20)    :: el_section 
+        character(len=10)    :: a_option 
+        integer              :: err
+        integer              :: start, finish
+        integer              :: i
 
         write(el_section, '(I0)')  el_number
         el_section = 'electron '//el_section
 
         call fini%get(section_name=trim(el_section), option_name='g', val=e%g)
+       
+        allocate(mult_I(fini%count_values(section_name=trim(el_section), option_name='I')))
+        call fini%get(section_name=trim(el_section), option_name='I',val=mult_I, error=err)
 
-        allocate(e%g_I(fini%count_values(section_name=trim(el_section), option_name='g_I')))
-        call fini%get(section_name=trim(el_section), option_name='g_I',val=e%g_I, error=err)
-        allocate(e%A(size(e%g_I), 3, 3))
-        allocate(e%a_iso(size(e%g_I)))
-        
+        allocate(N_I(fini%count_values(section_name=trim(el_section), option_name='N_I')))
+        call fini%get(section_name=trim(el_section), option_name='N_I',val=N_I, error=err)
+
+        ! allocate(e%g_I(fini%count_values(section_name=trim(el_section), option_name='g_I')))
+        ! call fini%get(section_name=trim(el_section), option_name='g_I',val=e%g_I, error=err)
+       
         ! If no electron couplings are specified, the g_I and A arrays have random sizes, so we need to reallocate them to 0 
         if (err /= 0) then
-            deallocate(e%g_I)
-            deallocate(e%A)
-            deallocate(e%a_iso)
-            allocate(e%g_I(0))
-            allocate(e%A(0,0,0))
-            allocate(e%a_iso(0))
+            deallocate(mult_I)
+            deallocate(N_I)
+            allocate(N_I(0))
+            allocate(mult_I(0))
         end if
+
+        if (size(N_I) /= size(mult_I)) stop 'Sections N_I and I must have the sam length.'
+
+        allocate(e%g_I(sum(N_I)))
+        allocate(e%A(size(e%g_I), 3, 3))
+        allocate(e%a_iso(size(e%g_I)))
+
+        if (size(e%g_I) == 0) return
+
+        print*, sum(N_I)
+
+        start = 1
+        finish = N_I(1)
+        do i=1,size(N_I)-1
+                e%g_I(start:finish) = mult_I(i)
+                start = start + N_I(i)
+                finish = finish + N_I(i+1)
+        end do
+        e%g_I(start:finish) = mult_I(size(N_I))
 
         do i=1,size(e%g_I)
             write(a_option, '(I0)') i
