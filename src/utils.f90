@@ -3,7 +3,7 @@ module utils
     use stdlib_sparse
 
     implicit none
-    public :: eye_cp, print_matrix, coo_to_csr
+    public :: eye_cp, print_matrix, coo_to_csr, outer_product
     private :: scale_sparse_cdp, scale_sparse_dp, add_sparse
 
 
@@ -130,5 +130,23 @@ module utils
         end do
         
     end subroutine 
+
+    function outer_product(v1,v2) result(outer)
+    ! Computes outer product of vectors, v1 and v2    
+        real(dp), intent(in)  :: v1(:),v2(:)
+        real(dp), allocatable :: outer(:,:)
+        
+        integer :: n1,n2, i, j
+        
+        n1=size(v1)
+        n2=size(v2)
+        allocate(outer(n1,n2))
+        do i = 1, n1 
+            do j = 1, n2
+                outer(i, j) = v1(i) * v2(j)
+            end do
+        end do
+
+    end function outer_product
 
 end module utils

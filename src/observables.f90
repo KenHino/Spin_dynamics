@@ -11,6 +11,7 @@ module class_observables
         real(dp), allocatable :: P_T0(:)  ! Time-resolved |T0> RP state population
         real(dp), allocatable :: P_Tp(:)  ! Time-resolved |T+> RP state population
         real(dp), allocatable :: P_Tm(:)  ! Time-resolved |T-> RP state population
+        real(dp), allocatable :: P_T(:)   ! Time-resolved |T-> RP state population
         real(dp), allocatable :: iden(:)  ! Trace of density operator - proportional to RP concentration
         real(dp), allocatable :: Phi_S(:) ! Singlet product yield
         real(dp), allocatable :: Phi_T(:) ! Triplet product yield
@@ -36,6 +37,10 @@ module class_observables
         allocate(self%P_T0(N_steps))
         allocate(self%P_Tp(N_steps))
         allocate(self%P_Tm(N_steps))
+        allocate(self%P_T(N_steps))
+        allocate(self%iden(N_steps))
+        allocate(self%Phi_S(N_steps/2))
+        allocate(self%Phi_T(N_steps/2))
 
     end subroutine malloc
 
@@ -46,7 +51,8 @@ module class_observables
         self%P_S = N 
         self%P_Tp = N 
         self%P_T0 = N 
-        self%P_Tm = N 
+        self%P_Tm = N
+        self%P_T = N
 
     end subroutine set
 
@@ -78,25 +84,15 @@ module class_observables
         real(dp), intent(in)              :: dt
         real(dp), intent(in)              :: kS, kT
 
-        real(dp), allocatable :: P_T(:)
         integer :: i
 
-        allocate(self%iden(size(self%P_S)))
-        allocate(P_T(size(self%P_S)))
-        allocate(self%Phi_S(size(self%P_S)/2))
-        allocate(self%Phi_T(size(self%P_S)/2))
-
-
-        P_T = self%P_Tp + self%P_T0 + self%P_Tm
-        self%iden = self%P_S + P_T
-        
         self%Phi_S(1) = 0.0_dp 
         self%Phi_T(1) = 0.0_dp
 
         ! Evaluate yields with Simpson's rule
         do i = 1,size(self%Phi_S)-1
-            self%Phi_S(i+1) = self%Phi_S(i) + (1.0_dp/3.0_dp)*dt*kS*(self%P_S(2*i-1) + 4*self%P_S(2*i) +self%P_S(2*i+1))
-            self%Phi_T(i+1) = self%Phi_T(i) + (1.0_dp/3.0_dp)*dt*kT*(P_T(2*i-1) + 4*P_T(2*i) +P_T(2*i+1))
+            self%Phi_S(i+1) = self%Phi_S(i) + (1.0_dp/3.0_dp)*dt*kS*(self%P_S(2*i-1) + 4*self%P_S(2*i) + self%P_S(2*i+1))
+            self%Phi_T(i+1) = self%Phi_T(i) + (1.0_dp/3.0_dp)*dt*kT*(self%P_T(2*i-1) + 4*self%P_T(2*i) + self%P_T(2*i+1))
         end do
 
     end subroutine get_kinetics

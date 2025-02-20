@@ -39,7 +39,8 @@ module symmetry
         call res%malloc(N_steps+1)
         call res%set(0.0_dp)
 
-        if (any(sys%e1%g_I /= 2) .or. any(sys%e2%g_I /= 2)) stop 'Method has not been implemented for nuclei with I>1/2.'
+        if (any(sys%e1%g_I /= 2) .or. any(sys%e2%g_I /= 2)) & 
+        stop 'Error: Symmetry method has not been implemented for nuclei with I>1/2.'
 
         if (size(sys%e1%g_I) > 0) then
             allocate(a1_bar(sim%M1))
@@ -63,17 +64,16 @@ module symmetry
             allocate(K2(0,1), source=1)
         end if
 
-        ! allocate(sys_current(size(K1,dim=2)))
         allocate(res_current(size(K1,dim=2)))
 
         do j=1,size(K2,dim=2)
             !$OMP PARALLEL DO SHARED(sys,sim, rng, K1, K2, a1_bar, a2_bar, n1_bar, n2_bar, Z)&
             !$OMP& PRIVATE(sys_new,w_k, Z_current)
             do i=1,size(K1,dim=2)
-                print*, 'starting new process'     
+                print'(A,I0,A,I0)', 'starting new process ', i, '/', size(K1,dim=2)      
                 w_k = weight(n1_bar, K1(:,i)) * weight(n2_bar, K2(:,j))
                 Z_current = int(product(K1(:,i)), kind=i8) * int(product(K2(:,j)), kind=i8)
-                if (real(w_k*Z_current, kind=dp)/real(Z, kind=dp) > sim%block_tol) then
+                if (real(w_k*Z_current, kind=dp) > real(Z, kind=dp)* sim%block_tol) then
 
                     call reduce_system(sys, K1(:,i), a1_bar, K2(:,j), a2_bar, sys_new)
 
@@ -83,7 +83,7 @@ module symmetry
                         call trace_sampling(sys_new, sim, rng, res_current(i))
                     end if
                     ! Weight result of simulation 
-                    call res_current(i)%scale(real(w_k*Z_current, kind=dp))
+                    call res_current(i)%scale(real((w_k*Z_current), kind=dp)/real(Z, kind=dp))
                 else
                     call res_current(i)%malloc(N_steps+1)
                     call res_current(i)%set(0.0_dp)
@@ -92,12 +92,14 @@ module symmetry
             !$OMP END PARALLEL DO
         end do
 
-
         do i=1,size(K1,dim=2)
             call res%update(res_current(i))        
         end do
 
-        call res%scale(1.0_dp/real(Z, kind=dp))
+        ! Calculate additional observables
+        res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
+        res%iden= res%P_S + res%P_T 
+        
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
         call res%output(sim%output_folder)
 
@@ -114,15 +116,11 @@ module symmetry
         sys_new%kS = sys%kS
         sys_new%kT = sys%kT
 
-        allocate(sys_new%e1%g_I(size(g_I1)))
-        allocate(sys_new%e1%a_iso(size(g_I1)))
         sys_new%e1%g_I = g_I1
         sys_new%e1%a_iso = a1_iso
         sys_new%e1%isotropic = .true.
         sys_new%Z1 = product(sys_new%e1%g_I)
 
-        allocate(sys_new%e2%g_I(size(g_I2)))
-        allocate(sys_new%e2%a_iso(size(g_I2)))
         sys_new%e2%g_I = g_I2
         sys_new%e2%a_iso = a2_iso
         sys_new%e2%isotropic = .true.

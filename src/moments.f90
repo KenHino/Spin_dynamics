@@ -1,7 +1,6 @@
 module moments
     ! Updated code from ref. https://journals.aps.org/prl/pdf/10.1103/PhysRevLett.120.220604
     use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
-    ! use stdlib_linalg
     use stdlib_linalg_lapack, only: steqr
     use stdlib_linalg, only: solve_lu
 
@@ -45,8 +44,7 @@ module moments
         integer(i8) :: nind
 
         ! It only makes any sense to call this subroutine with M < N:
-        if (M > N) stop 'M > N in shrink?'
-        if (M == N) stop 'M = N in shrink?'
+        if (M >= N) stop 'Error: Symmetrisation routine requires M < N'
     
         W = 1.0_dp
 
@@ -119,7 +117,7 @@ module moments
 
         do k=1,N
             q2 = norm2(q)
-            if (q2 == 0.0_dp) stop 'quad_rule 1'
+            if (q2 == 0.0_dp) stop "Error: Mano's code throws error here, no idea why"
             p(:, k) = q/q2
             q = X_init*P(:, k)
 
@@ -140,7 +138,7 @@ module moments
         
         call steqr('I', N, X, E(1:size(E)-1), Z, ldz, work, info)
 
-        if (info /= 0) stop 'Eigenvalue algorithm in Stieltjes procedure did not work properly.'
+        if (info /= 0) stop 'Error: Eigenvalue algorithm in Stieltjes procedure did not work properly.'
 
         do j = 1,N
             w(j) = (weight*Z(1,j))**2

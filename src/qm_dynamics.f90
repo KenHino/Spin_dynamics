@@ -123,6 +123,10 @@ module dynamics
         end do  
 
         call res%scale(1.0_dp/real(Z, kind=dp))
+        ! Calculate additional observables
+        res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
+        res%iden= res%P_S + res%P_T 
+        
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
         call res%output(sim%output_folder)
 
@@ -228,6 +232,9 @@ module dynamics
 
         ! Average observables
         call res%scale(1.0_dp/real(sim%N_samples, kind=dp))
+        ! Calculate additional observables
+        res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
+        res%iden= res%P_S + res%P_T 
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
         call res%output(sim%output_folder)
 

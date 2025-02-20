@@ -63,6 +63,7 @@ module variables
         character(len=500)  :: tmp2
         type(file_ini)      :: fini
         logical             :: dirExists
+        integer             :: err
         
         integer :: i
 
@@ -70,28 +71,39 @@ module variables
 
         call check_inp(fini)
 
-        call fini%get(section_name='system variables', option_name='J', val=sys%J)
+        call fini%get(section_name='system variables', option_name='J', val=sys%J, error=err)
+        if (err /= 0) stop 'Error: Exchange coupling is missing'
         call fini%get(section_name='system variables', option_name='D', val=D_tmp)
+        if (err /= 0) stop 'Error: Dipolar coupling is missing'
         sys%D = reshape(D_tmp, [3,3])
         call fini%get(section_name='system variables', option_name='kS', val=sys%kS)
+        if (err /= 0) stop 'Error: Singlet recombination rate is missing'
         call fini%get(section_name='system variables', option_name='kT', val=sys%kT)
+        if (err /= 0) stop 'Error: Triplet recombination rate is missing'
         sys%kS = sys%kS/gamma_e
         sys%kT = sys%kT/gamma_e
 
         allocate(sim%B(fini%count_values(section_name='simulation parameters', option_name='B')))
-        call fini%get(section_name='simulation parameters', option_name='B', val=sim%B)
-        call fini%get(section_name='simulation parameters', option_name='initial_state', val=tmp)
+        call fini%get(section_name='simulation parameters', option_name='B', val=sim%B, error=err)
+        if (err /= 0) stop 'Error: List of experiment magnetic fields is missing'
+        call fini%get(section_name='simulation parameters', option_name='initial_state', val=tmp, error=err)
         sim%init_state = trim(tmp)
+        if (err /= 0) stop 'Error: Initial state is missing'
+
+        call fini%get(section_name='simulation parameters', option_name='dt', val=sim%dt, error=err)
+        if (err /= 0) stop 'Error: Propagation timestep is missing'
+
+
         call fini%get(section_name='simulation parameters', option_name='N_samples', val=sim%N_samples)
         call fini%get(section_name='simulation parameters', option_name='simulation_time', val=sim%t_end)
         sim%t_end = (sim%t_end*gamma_e)/1000.0_dp
-        call fini%get(section_name='simulation parameters', option_name='dt', val=sim%dt)
         sim%dt = (sim%dt*gamma_e)/1000.0_dp
         call fini%get(section_name='simulation parameters', option_name='N_krylov', val=sim%N_krylov)
         call fini%get(section_name='simulation parameters', option_name='integrator_tolerance', val=sim%tol)
         call fini%get(section_name='simulation parameters', option_name='M1', val=sim%M1)
         call fini%get(section_name='simulation parameters', option_name='M2', val=sim%M2)
         call fini%get(section_name='simulation parameters', option_name='block_tolerance', val=sim%block_tol)
+
         call fini%get(section_name='simulation parameters', option_name='output_folder', val=tmp2)
         sim%output_folder = trim(tmp2)
         inquire(file=sim%output_folder // '/.', exist=dirExists)
@@ -154,7 +166,11 @@ module variables
         write(el_section, '(I0)')  el_number
         el_section = 'electron '//el_section
 
-        call fini%get(section_name=trim(el_section), option_name='g', val=e%g)
+        call fini%get(section_name=trim(el_section), option_name='g', val=e%g, error=err)
+        if (err /= 0) then
+            print'(A,A,I0, A)', 'Error: g-factor A'' for electron ', el_number, ' is missing.'
+            stop
+        end if
        
         allocate(mult_I(fini%count_values(section_name=trim(el_section), option_name='I')))
         call fini%get(section_name=trim(el_section), option_name='I',val=mult_I, error=err)

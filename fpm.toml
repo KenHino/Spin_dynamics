@@ -10,7 +10,6 @@ copyright = "Copyright 2024, damyanfr"
 source-dir="src"
 
 [dependencies]
-fsparse = { git="https://github.com/jalvesz/FSPARSE" }
 stdlib = { git="https://github.com/fortran-lang/stdlib", branch="stdlib-fpm" }
 
 [executable]

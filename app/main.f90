@@ -6,8 +6,8 @@ program main
     use class_observables
     use utils
     use dynamics
-    use stdlib_stats_distribution_normal
-    ! use stdlib_random, only: random_seed
+    use class_radical_pair
+    use sc_dynamics
     use m_random
     use moments
     use symmetry
@@ -27,17 +27,6 @@ program main
     integer(8) :: seed(2)
     integer :: i
 
-    real(dp), allocatable :: a(:)
-    real(dp), allocatable :: w(:)
-    integer :: N
-    integer :: M
-    real(dp), allocatable :: a_bar(:)
-    real(dp), allocatable :: a2_bar(:)
-    real(dp), allocatable :: w_bar(:)
-    integer, allocatable :: n_bar(:)
-
-    integer ::  n_trial(4)
-    integer, allocatable ::  k_trial(:,:)
 
     input_file = '/home/damianko/fpm/spinchem/input.ini'
 
