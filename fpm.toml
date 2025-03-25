@@ -5,7 +5,6 @@ author = "Damianko"
 maintainer = "damyanfr@gmail.com"
 copyright = "Copyright 2024, damyanfr"
 
-
 [library]
 source-dir="src"
 

@@ -98,11 +98,11 @@ module variables
         call fini%get(section_name='simulation parameters', option_name='simulation_time', val=sim%t_end)
         sim%t_end = (sim%t_end*gamma_e)/1000.0_dp
         sim%dt = (sim%dt*gamma_e)/1000.0_dp
+        call fini%get(section_name='simulation parameters', option_name='block_tolerance', val=sim%block_tol)
         call fini%get(section_name='simulation parameters', option_name='N_krylov', val=sim%N_krylov)
         call fini%get(section_name='simulation parameters', option_name='integrator_tolerance', val=sim%tol)
         call fini%get(section_name='simulation parameters', option_name='M1', val=sim%M1)
         call fini%get(section_name='simulation parameters', option_name='M2', val=sim%M2)
-        call fini%get(section_name='simulation parameters', option_name='block_tolerance', val=sim%block_tol)
 
         call fini%get(section_name='simulation parameters', option_name='output_folder', val=tmp2)
         sim%output_folder = trim(tmp2)

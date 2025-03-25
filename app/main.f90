@@ -23,12 +23,16 @@ program main
     type(RNG_t)               :: rng
     type(COO_cdp_type)        :: H_coo
     type(CSR_cdp_type)        :: H
+    logical                   :: fileExists
 
     integer(8) :: seed(2)
     integer :: i
 
 
-    input_file = '/home/damianko/fpm/spinchem/input.ini'
+    input_file = '/home/damianko/fpm/spinchem/data/cpf.ini'
+
+    inquire(file=input_file, exist=fileExists)
+    if (.not. fileExists) stop 'Error: Input file does not exist.'
 
     ! call get_command_argument(1, guz)
     ! input_file = trim(guz)
@@ -38,6 +42,8 @@ program main
 
     call rng%set_random_seed()
     seed = rng%s
+    
+
     
     do i=1,size(sim%B)
 !         print*, sim%B(i)
@@ -55,7 +61,7 @@ program main
         call system(' mkdir ' // folder)
 
         call symmetrised_dynamics(sys, sim, rng, res)
-!         ! call trace_sampling(sys, sim, rng, res, output_folder)
+        ! call trace_sampling(sys, sim, rng, res, output_folder)
     end do
 
 end program main

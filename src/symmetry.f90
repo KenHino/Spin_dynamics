@@ -64,13 +64,14 @@ module symmetry
             allocate(K2(0,1), source=1)
         end if
 
+
         allocate(res_current(size(K1,dim=2)))
 
         do j=1,size(K2,dim=2)
             !$OMP PARALLEL DO SHARED(sys,sim, rng, K1, K2, a1_bar, a2_bar, n1_bar, n2_bar, Z)&
             !$OMP& PRIVATE(sys_new,w_k, Z_current)
             do i=1,size(K1,dim=2)
-                print'(A,I0,A,I0)', 'starting new process ', i, '/', size(K1,dim=2)      
+                ! print'(A,I0,A,I0)', 'starting new process ', i, '/', size(K1,dim=2)      
                 w_k = weight(n1_bar, K1(:,i)) * weight(n2_bar, K2(:,j))
                 Z_current = int(product(K1(:,i)), kind=i8) * int(product(K2(:,j)), kind=i8)
                 if (real(w_k*Z_current, kind=dp) > real(Z, kind=dp)* sim%block_tol) then
@@ -78,30 +79,33 @@ module symmetry
                     call reduce_system(sys, K1(:,i), a1_bar, K2(:,j), a2_bar, sys_new)
 
                     if (Z_current <= sim%N_samples) then
-                        call exact_dynamics(sys_new, sim, res_current(i))
+                        ! call exact_dynamics(sys_new, sim, res_current(i))
+                        print*, 'exact'
                     else 
-                        call trace_sampling(sys_new, sim, rng, res_current(i))
+                        ! call trace_sampling(sys_new, sim, rng, res_current(i))
+                        print*, i ,'trace sampling ', product(K1(:,i)) 
                     end if
                     ! Weight result of simulation 
-                    call res_current(i)%scale(real((w_k*Z_current), kind=dp)/real(Z, kind=dp))
+                    ! call res_current(i)%scale(real((w_k*Z_current), kind=dp)/real(Z, kind=dp))
                 else
-                    call res_current(i)%malloc(N_steps+1)
-                    call res_current(i)%set(0.0_dp)
+                    print*, i, 'skip ', product(K1(:,i)) 
+                    ! call res_current(i)%malloc(N_steps+1)
+                    ! call res_current(i)%set(0.0_dp)
                 end if
             end do
             !$OMP END PARALLEL DO
         end do
 
-        do i=1,size(K1,dim=2)
-            call res%update(res_current(i))        
-        end do
+        ! do i=1,size(K1,dim=2)
+        !     call res%update(res_current(i))        
+        ! end do
 
         ! Calculate additional observables
         res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
         res%iden= res%P_S + res%P_T 
         
-        call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        call res%output(sim%output_folder)
+        ! call res%get_kinetics(sim%dt, sys%kS, sys%kT)
+        ! call res%output(sim%output_folder)
 
     end subroutine symmetrised_dynamics
 
