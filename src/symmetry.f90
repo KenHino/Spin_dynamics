@@ -12,23 +12,32 @@ module symmetry
 
     contains
     
-    subroutine symmetrised_dynamics(sys, sim, rng, res)
+    subroutine symmetrised_dynamics(sys, sim, rng, out)
     ! Run quantum mechanical dynamics with trace sampling
-        type(sys_param), intent(in)              :: sys 
-        type(sim_param), intent(inout)           :: sim 
-        type(RNG_t), intent(inout)               :: rng
-        type(observables), intent(out)           :: res 
+        type(sys_param), intent(in)        :: sys 
+        type(sim_param), intent(inout)     :: sim 
+        type(RNG_t), intent(inout)         :: rng
+        character(len=600),  intent(inout) :: out
 
+        type(observables)              :: res 
         integer(i8)                    :: Z
         integer                        :: N_steps
         real(dp), allocatable          :: a1_bar(:), a2_bar(:)
         integer, allocatable           :: n1_bar(:), n2_bar(:)
-        integer, allocatable           :: K1(:,:), K2(:,:) 
-        integer(i8)                    :: Z_current
-        integer(i8)                    :: w_k
+        integer, allocatable           :: N_bar(:)
+
+
+        integer, allocatable           :: K_init(:,:), K(:,:) 
+        integer, allocatable           :: gI1(:), gI2(:) 
+        integer(i8), allocatable       :: Z_current(:)
+        integer(i8)                    :: Z1, Z2
+        integer(i8)                    :: w_ij
+        real(dp)                       :: w_k
         type(sys_param)                :: sys_new
         type(observables), allocatable :: res_current(:)
-        integer(i8) :: sum = 0
+        character(len=600)             :: folder
+        character(len=16)              :: tmp
+        integer :: maxi
 
         integer :: i, j
 
@@ -39,73 +48,79 @@ module symmetry
         call res%malloc(N_steps+1)
         call res%set(0.0_dp)
 
-        if (any(sys%e1%g_I /= 2) .or. any(sys%e2%g_I /= 2)) & 
-        stop 'Error: Symmetry method has not been implemented for nuclei with I>1/2.'
+        if (any(sys%e1%g_I /= 2) .or. any(sys%e2%g_I /= 2)) stop 'Method has not been implemented for nuclei with I>1/2.'
 
-        if (size(sys%e1%g_I) > 0) then
-            allocate(a1_bar(sim%M1))
-            allocate(n1_bar(sim%M1))
-            call shrink(sys%e1%a_iso, sim%M1, size(sys%e1%g_I), a1_bar, n1_bar)
-            call cartesian_product(n1_bar, K1)
-        else
-            allocate(a1_bar(0))
-            allocate(n1_bar(0))
-            allocate(K1(1,1), source=1)
-        end if
+        call shrink(sys%e1%a_iso, sim%M1, a1_bar, n1_bar)
+        call shrink(sys%e2%a_iso, sim%M2, a2_bar, n2_bar)
 
-        if (size(sys%e2%g_I) > 0) then
-            allocate(a2_bar(sim%M2))
-            allocate(n2_bar(sim%M2))
-            call shrink(sys%e2%a_iso, sim%M2, size(sys%e2%g_I), a2_bar, n2_bar)
-            call cartesian_product(n2_bar, K2)
-        else
-            allocate(a2_bar(0))
-            allocate(n2_bar(0))
-            allocate(K2(0,1), source=1)
-        end if
+        allocate(n_bar(sim%M1 + sim%M2))
+
+        n_bar(1:sim%M1) = n1_bar 
+        n_bar(sim%M1+1:1:sim%M1+sim%M2) = n2_bar 
+
+        call cartesian_product(n_bar, K_init)
+        call sort_col_prod(K_init, Z_current, K)
 
 
-        allocate(res_current(size(K1,dim=2)))
+        allocate(gI1(sim%M1))
+        allocate(gI2(sim%M2))
 
-        do j=1,size(K2,dim=2)
-            !$OMP PARALLEL DO SHARED(sys,sim, rng, K1, K2, a1_bar, a2_bar, n1_bar, n2_bar, Z)&
-            !$OMP& PRIVATE(sys_new,w_k, Z_current)
-            do i=1,size(K1,dim=2)
-                ! print'(A,I0,A,I0)', 'starting new process ', i, '/', size(K1,dim=2)      
-                w_k = weight(n1_bar, K1(:,i)) * weight(n2_bar, K2(:,j))
-                Z_current = int(product(K1(:,i)), kind=i8) * int(product(K2(:,j)), kind=i8)
-                if (real(w_k*Z_current, kind=dp) > real(Z, kind=dp)* sim%block_tol) then
+        maxi = 0
+        
+        allocate(res_current(size(K, dim=2)))
 
-                    call reduce_system(sys, K1(:,i), a1_bar, K2(:,j), a2_bar, sys_new)
-
-                    if (Z_current <= sim%N_samples) then
-                        ! call exact_dynamics(sys_new, sim, res_current(i))
-                        print*, 'exact'
-                    else 
-                        ! call trace_sampling(sys_new, sim, rng, res_current(i))
-                        print*, i ,'trace sampling ', product(K1(:,i)) 
+        !$OMP PARALLEL DO SHARED(sys, sim, rng, K, Z_current, a1_bar, a2_bar, n1_bar, n2_bar, Z, res_current)&
+        !$OMP& PRIVATE(sys_new, w_k, folder, tmp, gI1, gI2)       
+        do i=1,size(K, dim=2)
+            gI1 = K(1:sim%M1,i)
+            gI2 = K(sim%M1+1:1:sim%M1+sim%M2,i)
+            w_ij = weight(n1_bar, gI1) * weight(n2_bar, gI2)
+            ! Z_current(i) = int(product(gI1), kind=i8) * int(product(gI2), kind=i8)
+            ! print*, Z_current
+            w_k = real(w_ij*Z_current(i), kind=dp)/real(Z, kind=dp) 
+            if (w_k > sim%block_tol) then
+                
+                write(tmp,'(I0)') i ! converting integer to string using a 'internal file'
+                folder = sim%output_folder // '/hamiltonian_' // trim(tmp)
+                call system(' mkdir ' // folder // ' > /dev/null 2>&1')
+                call reduce_system(sys, gI1, a1_bar, gI2, a2_bar, sys_new)
+                
+                ! It only makes sense to use trace sampling if the nuclear Hilbert space is larger than the amount of samples used 
+                if (Z_current(i) <= sim%N_samples) then
+                    print'(A, I0, A, I0)', 'starting exact dynamics of hamiltonian ' , i, '/' , size(K,dim=2)
+                    print'(A, I0)', 'Z = ', Z_current(i)   
+                    print'(A, I0, A, F0.16)', 'weight_', i ,' = ', w_k   
+                    call exact_dynamics(sys_new, sim, res_current(i), folder)
+                else 
+                    if (Z_current(i) > maxi) then 
+                        maxi = Z_current(i)
                     end if
-                    ! Weight result of simulation 
-                    ! call res_current(i)%scale(real((w_k*Z_current), kind=dp)/real(Z, kind=dp))
-                else
-                    print*, i, 'skip ', product(K1(:,i)) 
-                    ! call res_current(i)%malloc(N_steps+1)
-                    ! call res_current(i)%set(0.0_dp)
+                    print'(A, I0, A, I0)', 'starting trace sampling of hamiltonian ' , i,  '/' , size(K,dim=2)
+                    print'(A, I0)', 'Z = ', Z_current(i)   
+                    print'(A, I0, A, F0.16)', 'weight_', i ,' = ', w_k   
+                    call trace_sampling(sys_new, sim, rng, res_current(i), folder)
                 end if
-            end do
-            !$OMP END PARALLEL DO
+                ! Weight result of simulation 
+                call res_current(i)%scale(real(w_k, kind=dp))
+            else
+                print'(A, I0, A, I0)', 'skipped hamiltonian ' , i
+                print'(A, I0)', 'Z = ', Z_current(i)   
+                print'(A, I0, A, F0.16)', 'weight_', i ,' = ', w_k   
+                call res_current(i)%malloc(N_steps+1)
+                call res_current(i)%set(0.0_dp)
+            end if
+        end do
+        !$OMP END PARALLEL DO
+
+        do i=1,size(K, dim=2)
+            call res%update(res_current(i))        
         end do
 
-        ! do i=1,size(K1,dim=2)
-        !     call res%update(res_current(i))        
-        ! end do
 
-        ! Calculate additional observables
-        res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
-        res%iden= res%P_S + res%P_T 
+        print*, maxi
         
-        ! call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        ! call res%output(sim%output_folder)
+        call res%get_kinetics(sim%dt, sys%kS, sys%kT)
+        call res%output(out)
 
     end subroutine symmetrised_dynamics
 
@@ -120,11 +135,15 @@ module symmetry
         sys_new%kS = sys%kS
         sys_new%kT = sys%kT
 
+        allocate(sys_new%e1%g_I(size(g_I1)))
+        allocate(sys_new%e1%a_iso(size(g_I1)))
         sys_new%e1%g_I = g_I1
         sys_new%e1%a_iso = a1_iso
         sys_new%e1%isotropic = .true.
         sys_new%Z1 = product(sys_new%e1%g_I)
 
+        allocate(sys_new%e2%g_I(size(g_I2)))
+        allocate(sys_new%e2%a_iso(size(g_I2)))
         sys_new%e2%g_I = g_I2
         sys_new%e2%a_iso = a2_iso
         sys_new%e2%isotropic = .true.

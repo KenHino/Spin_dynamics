@@ -36,10 +36,10 @@ module variables
     end type sys_param
     
     type sim_param
-        real(dp), allocatable     :: B(:)
+        character(:), allocatable :: type         ! spin state in which radical pair is formed
+        real(dp), allocatable     :: B(:)             ! magnetic fields  
         character(:), allocatable :: init_state       ! spin state in which radical pair is formed
         integer                   :: N_samples        ! # of Monte Carlo samples
-        complex(dp), allocatable  :: SUZ_samples(:,:) ! S(UZ) Monte Carlo samples
         real(dp)                  :: t_end            ! duration of simulation
         real(dp)                  :: dt               ! integrator timestep
         integer                   :: N_krylov         ! size of Krylov space
@@ -83,16 +83,18 @@ module variables
         sys%kS = sys%kS/gamma_e
         sys%kT = sys%kT/gamma_e
 
+        call fini%get(section_name='simulation parameters', option_name='simulation_type', val=tmp, error=err)
+        if (err /= 0) stop 'Error: Simulation type is missing'
+        sim%type = trim(tmp)
+
         allocate(sim%B(fini%count_values(section_name='simulation parameters', option_name='B')))
         call fini%get(section_name='simulation parameters', option_name='B', val=sim%B, error=err)
         if (err /= 0) stop 'Error: List of experiment magnetic fields is missing'
         call fini%get(section_name='simulation parameters', option_name='initial_state', val=tmp, error=err)
         sim%init_state = trim(tmp)
         if (err /= 0) stop 'Error: Initial state is missing'
-
         call fini%get(section_name='simulation parameters', option_name='dt', val=sim%dt, error=err)
         if (err /= 0) stop 'Error: Propagation timestep is missing'
-
 
         call fini%get(section_name='simulation parameters', option_name='N_samples', val=sim%N_samples)
         call fini%get(section_name='simulation parameters', option_name='simulation_time', val=sim%t_end)
@@ -166,11 +168,7 @@ module variables
         write(el_section, '(I0)')  el_number
         el_section = 'electron '//el_section
 
-        call fini%get(section_name=trim(el_section), option_name='g', val=e%g, error=err)
-        if (err /= 0) then
-            print'(A,A,I0, A)', 'Error: g-factor A'' for electron ', el_number, ' is missing.'
-            stop
-        end if
+        call fini%get(section_name=trim(el_section), option_name='g', val=e%g)
        
         allocate(mult_I(fini%count_values(section_name=trim(el_section), option_name='I')))
         call fini%get(section_name=trim(el_section), option_name='I',val=mult_I, error=err)

@@ -9,50 +9,51 @@ module dynamics
     use hamiltonian
     use matrix_exponential
     use m_random
-    ! use stdlib_linalg_blas
-    ! use stdlib_linalg_lapack_d
 
     implicit none
 
     public :: exact_dynamics_dense, &
               exact_dynamics, &
               trace_sampling, &
+              trace_sampling_para, &
               sample_SUZ  
     private 
 
     contains
 
-    subroutine exact_dynamics(sys, sim, res)
+    subroutine exact_dynamics(sys, sim, res, out)
     ! Run quantum mechanical dynamics with full nuclear Hilber space
         type(sys_param), intent(in)              :: sys 
         type(sim_param), intent(inout)           :: sim 
         type(observables), intent(out)           :: res 
+        character(len=600), optional, intent(inout) :: out
 
-        type(COO_cdp_type)       :: H_coo
-        type(CSR_cdp_type)       :: H
-        type(observables)        :: sample_obs
-        integer                  :: N_steps
-        complex(dp)              :: theta(4) ! init electronic wavefunction
-        complex(dp), allocatable :: Z_ket(:) ! init nuclear wavefunction
-        complex(dp), allocatable :: psi(:)   ! theta X Z_ket
-        integer                  :: Z        ! size of nuclear Hilbert space
-        integer                  :: N        ! size of combined Hilbert space
-        real(dp)                 :: t
-        real(dp)                 :: init_pop(4)
-        complex(dp)              :: c(sim%N_krylov)
-        real(dp)                 :: c2  
-        real(dp)                 :: c_m2  
-        complex(dp)              :: A(sim%N_krylov, sim%N_krylov) 
-        complex(dp), allocatable :: A_exp(:, :)
-        complex(dp)              :: P_S(sim%N_krylov, sim%N_krylov) 
-        complex(dp)              :: P_Tp(sim%N_krylov, sim%N_krylov) 
-        complex(dp)              :: P_T0(sim%N_krylov, sim%N_krylov) 
-        complex(dp)              :: P_Tm(sim%N_krylov, sim%N_krylov) 
-        complex(dp), allocatable :: Q(:, :) 
+
+        ! type(observables), allocatable :: sample_obs(:)
+        type(COO_cdp_type)             :: H_coo
+        type(CSR_cdp_type)             :: H
+        type(observables)              :: sample_obs
+        integer                        :: N_steps
+        complex(dp)                    :: theta(4) ! init electronic wavefunction
+        complex(dp), allocatable       :: Z_ket(:) ! init nuclear wavefunction
+        complex(dp), allocatable       :: psi(:)   ! theta X Z_ket
+        integer                        :: Z        ! size of nuclear Hilbert space
+        integer                        :: N        ! size of combined Hilbert space
+        real(dp)                       :: t
+        real(dp)                       :: init_pop(4)
+        complex(dp)                    :: c(sim%N_krylov)
+        real(dp)                       :: c2  
+        real(dp)                       :: c_m2  
+        complex(dp)                    :: A(sim%N_krylov, sim%N_krylov) 
+        complex(dp), allocatable       :: A_exp(:, :)
+        complex(dp)                    :: P_S(sim%N_krylov, sim%N_krylov) 
+        complex(dp)                    :: P_Tp(sim%N_krylov, sim%N_krylov) 
+        complex(dp)                    :: P_T0(sim%N_krylov, sim%N_krylov) 
+        complex(dp)                    :: P_Tm(sim%N_krylov, sim%N_krylov) 
+        complex(dp), allocatable       :: Q(:, :) 
 
         integer  :: i, j, k
     
-        
         Z = sys%Z1*sys%Z2
         N = 4*Z
         
@@ -67,19 +68,23 @@ module dynamics
         call init_el_state(sim, theta, init_pop)
 
         N_steps = ceiling((sim%t_end+sim%dt)/sim%dt)
-        call sample_obs%malloc(N_steps+1)
         call res%malloc(N_steps+1)
         call res%set(0.0_dp)
-
+        ! allocate(sample_obs(Z))
+        call sample_obs%malloc(N_steps+1)
+        
 
         allocate(Z_ket(Z))
         allocate(psi(4*Z))
         allocate(Q(N, sim%N_krylov))
 
+      
         do i=1,Z
+            ! print*, 'start state', i
             Z_ket = (0.0_dp, 0.0_dp)
             Z_ket(i) = 1.0_dp
             psi = kron_vector(theta, Z_ket)
+            ! call sample_obs(i)%malloc(N_steps+1)
             call sample_obs%set(0.0_dp)
             sample_obs%P_S(1) = init_pop(1)
             sample_obs%P_T0(1) = init_pop(2)
@@ -122,26 +127,26 @@ module dynamics
 
         end do  
 
+
         call res%scale(1.0_dp/real(Z, kind=dp))
-        ! Calculate additional observables
-        res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
-        res%iden= res%P_S + res%P_T 
-        
-        call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        call res%output(sim%output_folder)
+        if (present(out)) then
+            ! call res%get_kinetics(sim%dt, sys%kS, sys%kT)
+            call res%output(out)
+        end if 
 
     end subroutine exact_dynamics
 
-    subroutine trace_sampling(sys, sim, rng, res)
+    subroutine trace_sampling(sys, sim, rng, res, out)
     ! Run quantum mechanical dynamics with trace sampling
-        type(sys_param), intent(in)              :: sys 
-        type(sim_param), intent(inout)           :: sim 
-        type(RNG_t), intent(inout)               :: rng
-        type(observables), intent(out)           :: res 
+        type(sys_param), intent(in)                        :: sys 
+        type(sim_param), intent(inout)                     :: sim 
+        type(RNG_t), intent(inout)                         :: rng
+        type(observables), intent(out)                     :: res 
+        character(len=600), optional, intent(inout)        :: out
+
 
         type(COO_cdp_type)       :: H_coo
         type(CSR_cdp_type)       :: H
-        type(observables)        :: sample_obs
         integer                  :: N_steps
         complex(dp)              :: theta(4) ! init electronic wavefunction
         complex(dp), allocatable :: Z_ket(:) ! init nuclear wavefunction
@@ -160,6 +165,8 @@ module dynamics
         complex(dp)              :: P_T0(sim%N_krylov, sim%N_krylov) 
         complex(dp)              :: P_Tm(sim%N_krylov, sim%N_krylov) 
         complex(dp), allocatable :: Q(:, :) 
+        type(observables)        :: sample_obs
+        ! type(observables), allocatable :: sample_obs(:)
 
         integer  :: i, j, k
     
@@ -177,17 +184,21 @@ module dynamics
         call init_el_state(sim, theta, init_pop)
 
         N_steps = ceiling((sim%t_end+sim%dt)/sim%dt)
-        call sample_obs%malloc(N_steps+1)
         call res%malloc(N_steps+1)
         call res%set(0.0_dp)
+        call sample_obs%malloc(N_steps+1)
+        
 
         allocate(Z_ket(Z))
         allocate(psi(4*Z))
         allocate(Q(N, sim%N_krylov))
+        
+        ! allocate(sample_obs(sim%N_samples))
 
         do i=1, sim%N_samples
             call sample_SUZ(rng, Z_ket)
             psi = kron_vector(theta, Z_ket)
+            ! call sample_obs(i)%malloc(N_steps+1)
             call sample_obs%set(0.0_dp)
             sample_obs%P_S(1) = init_pop(1)
             sample_obs%P_T0(1) = init_pop(2)
@@ -197,7 +208,10 @@ module dynamics
             t = 0.0_dp
             k = 2            
 
+            ! print*, 'starting sample ', i
             do while (t < sim%t_end)
+
+                ! print*, 'Generating Krylov subspace at time t =  ', t
 
                 call get_krylov(N, psi, H, sim%N_krylov, Q, c, A)
                 call expm(((0.0_dp, -1.0_dp)*sim%dt*A), A_exp)
@@ -221,54 +235,171 @@ module dynamics
                     t = t+sim%dt
                     k = k+1
                 end do
-                
-                psi = matmul(Q, c)
-         
+                psi = matmul(Q, c)         
             end do
-
             call res%update(sample_obs)        
-            
+
         end do  
+
+        ! do i=1,sim%N_samples
+            ! call res%update(sample_obs)        
+        ! end do
 
         ! Average observables
         call res%scale(1.0_dp/real(sim%N_samples, kind=dp))
-        ! Calculate additional observables
-        res%P_T = res%P_Tp + res%P_T0 + res%P_Tm
-        res%iden= res%P_S + res%P_T 
-        call res%get_kinetics(sim%dt, sys%kS, sys%kT)
-        call res%output(sim%output_folder)
+        if (present(out)) then
+            ! call res%get_kinetics(sim%dt, sys%kS, sys%kT)
+            call res%output(out)
+        end if 
 
     end subroutine trace_sampling
 
-    subroutine init_el_state(sim, theta, init_pop)
-        type(sim_param), intent(in) :: sim 
-        complex(dp), intent(out)    :: theta(4) ! init electronic wavefunction
-        real(dp), intent(out)       :: init_pop(4)
-
-        init_pop=0.0_dp
-        select case (sim%init_state)
-            case('singlet')
-                theta%re = [0.0_dp, 1.0_dp/sqrt(2.0_dp), -1.0_dp/sqrt(2.0_dp), 0.0_dp] 
-                theta%im = 0.0_dp
-                init_pop(1) = 1.0_dp
-            case('T0')
-                theta%re = [0.0_dp, 1.0_dp/sqrt(2.0_dp), 1.0_dp/sqrt(2.0_dp), 0.0_dp] 
-                theta%im = 0.0_dp
-                init_pop(2) = 1.0_dp
-            case('Tp')
-                theta%re = [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp] 
-                theta%im = 0.0_dp
-                init_pop(3) = 1.0_dp
-            case('Tm')
-                theta%re = [0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp] 
-                theta%im = 0.0_dp
-                init_pop(4) = 1.0_dp
-            case default
-                print*, 'Error: Invalid initial radical pair state entered.'
-                stop
-        end select
-
-    end subroutine
+    subroutine trace_sampling_para(sys, sim, rng, res, out)
+        ! Run quantum mechanical dynamics with trace sampling
+            type(sys_param), intent(in)                 :: sys 
+            type(sim_param), intent(inout)              :: sim 
+            type(RNG_t), intent(inout)                  :: rng
+            type(observables), intent(out)              :: res 
+            character(len=600), optional, intent(inout) :: out
+    
+    
+            type(COO_cdp_type)       :: H_coo
+            type(CSR_cdp_type)       :: H
+            integer                  :: N_steps
+            complex(dp)              :: theta(4) ! init electronic wavefunction
+            complex(dp), allocatable :: Z_ket(:) ! init nuclear wavefunction
+            complex(dp), allocatable :: psi(:)   ! theta X Z_ket
+            integer                  :: Z        ! size of nuclear Hilbert space
+            integer                  :: N        ! size of combined Hilbert space
+            real(dp)                 :: t
+            real(dp)                 :: init_pop(4)
+            complex(dp)              :: c(sim%N_krylov)
+            real(dp)                 :: c2  
+            real(dp)                 :: c_m2  
+            complex(dp)              :: A(sim%N_krylov, sim%N_krylov) 
+            complex(dp), allocatable :: A_exp(:, :)
+            complex(dp)              :: P_S(sim%N_krylov, sim%N_krylov) 
+            complex(dp)              :: P_Tp(sim%N_krylov, sim%N_krylov) 
+            complex(dp)              :: P_T0(sim%N_krylov, sim%N_krylov) 
+            complex(dp)              :: P_Tm(sim%N_krylov, sim%N_krylov) 
+            complex(dp), allocatable :: Q(:, :) 
+            ! type(observables)        :: sample_obs
+            type(observables), allocatable :: sample_obs(:)
+    
+            integer  :: i, j, k
+        
+            Z = sys%Z1*sys%Z2
+            N = 4*Z
+    
+            if (sys%e1%isotropic .and. sys%e2%isotropic) then
+                call getHiso_sp(sys, H_coo)
+                call coo_to_csr(H_coo, H)
+                ! print*, 'Hamiltonian generated.'
+            else
+                stop 'Anisotropic Hamiltoninans have not been implemented yet'
+            end if
+    
+            call init_el_state(sim, theta, init_pop)
+    
+            N_steps = ceiling((sim%t_end+sim%dt)/sim%dt)
+            call res%malloc(N_steps+1)
+            call res%set(0.0_dp)
+    
+            allocate(Z_ket(Z))
+            allocate(psi(4*Z))
+            allocate(Q(N, sim%N_krylov))
+            
+            allocate(sample_obs(sim%N_samples))
+    
+            !$OMP PARALLEL DO SHARED(sys,sim,rng, init_pop,N, sample_obs)&
+            !$OMP& PRIVATE(t,k,c2,c_m2,c,psi,Q, P_S, P_T0, P_Tp, P_Tm,A,A_exp,Z_ket)
+            do i=1, sim%N_samples
+                call sample_SUZ(rng, Z_ket)
+                psi = kron_vector(theta, Z_ket)
+                call sample_obs(i)%malloc(N_steps+1)
+                call sample_obs(i)%set(0.0_dp)
+                sample_obs(i)%P_S(1) = init_pop(1)
+                sample_obs(i)%P_T0(1) = init_pop(2)
+                sample_obs(i)%P_Tp(1) = init_pop(3)
+                sample_obs(i)%P_Tm(1) = init_pop(4)
+    
+                t = 0.0_dp
+                k = 2            
+    
+                print*, 'starting sample ', i
+                do while (t < sim%t_end)
+    
+                    ! print*, 'Generating Krylov subspace at time t =  ', t
+    
+                    call get_krylov(N, psi, H, sim%N_krylov, Q, c, A)
+                    call expm(((0.0_dp, -1.0_dp)*sim%dt*A), A_exp)
+                    call convert_to_krylov(sim%N_krylov, Q, Z, P_S, P_T0, P_Tp, P_Tm)
+    
+                    c2 = 1.0_dp
+                    c_m2 = 0.0_dp 
+    
+                    do while (c_m2 <= sim%tol*c2 .and. t < sim%t_end)
+                        c = matmul(A_exp, c)
+    
+                        ! Collect observables
+                        sample_obs(i)%P_S(k) = real(dot_product(c, matmul(P_S, c)), kind=dp)
+                        sample_obs(i)%P_Tp(k) = real(dot_product(c, matmul(P_Tp, c)), kind=dp)
+                        sample_obs(i)%P_T0(k) = real(dot_product(c, matmul(P_T0, c)), kind=dp)
+                        sample_obs(i)%P_Tm(k) = real(dot_product(c, matmul(P_Tm, c)), kind=dp)
+    
+                        c2 = real(dot_product(c,c), kind=dp)
+                        c_m2 = real(c(sim%N_krylov)*conjg(c(sim%N_krylov)), kind=dp) 
+    
+                        t = t+sim%dt
+                        k = k+1
+                    end do
+                    psi = matmul(Q, c)         
+                end do
+            end do  
+            !$OMP END PARALLEL DO
+    
+            do i=1,sim%N_samples
+                call res%update(sample_obs(i))        
+            end do
+    
+            ! Average observables
+            call res%scale(1.0_dp/real(sim%N_samples, kind=dp))
+            if (present(out)) then
+                ! call res%get_kinetics(sim%dt, sys%kS, sys%kT)
+                call res%output(out)
+            end if 
+    
+        end subroutine trace_sampling_para
+    
+        subroutine init_el_state(sim, theta, init_pop)
+            type(sim_param), intent(in) :: sim 
+            complex(dp), intent(out)    :: theta(4) ! init electronic wavefunction
+            real(dp), intent(out)       :: init_pop(4)
+    
+            init_pop=0.0_dp
+            select case (sim%init_state)
+                case('singlet')
+                    theta%re = [0.0_dp, 1.0_dp/sqrt(2.0_dp), -1.0_dp/sqrt(2.0_dp), 0.0_dp] 
+                    theta%im = 0.0_dp
+                    init_pop(1) = 1.0_dp
+                case('T0')
+                    theta%re = [0.0_dp, 1.0_dp/sqrt(2.0_dp), 1.0_dp/sqrt(2.0_dp), 0.0_dp] 
+                    theta%im = 0.0_dp
+                    init_pop(2) = 1.0_dp
+                case('Tp')
+                    theta%re = [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp] 
+                    theta%im = 0.0_dp
+                    init_pop(3) = 1.0_dp
+                case('Tm')
+                    theta%re = [0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp] 
+                    theta%im = 0.0_dp
+                    init_pop(4) = 1.0_dp
+                case default
+                    print*, 'Error: Invalid initial radical pair state entered.'
+                    stop
+            end select
+    
+    end subroutine init_el_state
 
     subroutine sample_SUZ(rng, Z_ket)
     ! Sample SU(Z) coherent state of dimension Z 

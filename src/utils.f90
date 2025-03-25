@@ -1,9 +1,10 @@
 module utils
-    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
     use stdlib_sparse
+    use stdlib_sorting
 
     implicit none
-    public :: eye_cp, print_matrix, coo_to_csr, outer_product
+    public :: eye_cp, print_matrix, coo_to_csr, get_time, sort_col_prod
     private :: scale_sparse_cdp, scale_sparse_dp, add_sparse
 
 
@@ -21,6 +22,36 @@ module utils
 
     contains
 
+    subroutine sort_col_prod(A, Z, A_sort)
+    ! Sort a 2D array based on the product of each column
+        integer, allocatable, intent(inout)    :: A(:,:)    
+        integer(i8), allocatable, intent(out)  :: Z(:)    
+        integer, allocatable, intent(out)      :: A_sort(:,:)    
+
+        integer, allocatable :: indx(:)
+        integer :: i
+        
+        allocate(A_sort(size(A,dim=1), size(A,dim=2)))
+        allocate(Z(size(A,dim=2)))
+        allocate(indx(size(A,dim=2)))
+        
+        do i=1,size(A,dim=2)
+            Z(i) = int(product(A(:,i)), kind=i8)
+        end do
+
+        call sort_index(Z, indx)
+
+        do i=1,size(indx)
+            A_sort(:,i) = A(:, indx(i))
+        end do
+
+        do i = 1, size(a, 1)
+            print*, A_sort(i, :) 
+        end do
+
+        deallocate(A)
+
+    end subroutine sort_col_prod 
 
     subroutine coo_to_csr(H_coo, H_csr)
     ! Converts unordered COO sparse matrix to CSR
@@ -125,28 +156,34 @@ module utils
         integer :: i
 
         do i = 1, size(a, 1)
-             write(*, "(*('('sf6.4xspf6.4x'i)':x))") a(i,:)
+            !  write(*, "(*('('sf6.4xspf6.4x'i)':x))") a(i,:)
             ! print*, a(i, :) 
         end do
         
     end subroutine 
 
-    function outer_product(v1,v2) result(outer)
-    ! Computes outer product of vectors, v1 and v2    
-        real(dp), intent(in)  :: v1(:),v2(:)
-        real(dp), allocatable :: outer(:,:)
-        
-        integer :: n1,n2, i, j
-        
-        n1=size(v1)
-        n2=size(v2)
-        allocate(outer(n1,n2))
-        do i = 1, n1 
-            do j = 1, n2
-                outer(i, j) = v1(i) * v2(j)
-            end do
-        end do
+    subroutine get_time(start, finish, time) 
+        ! subroutine that gets the time elapsed from itime output
+        integer, intent(inout) :: start(3), finish(3) 
+        integer, intent(out) :: time(3)
 
-    end function outer_product
+        if (finish(3) >= start(3)) then 
+            time(3) = finish(3) - start(3)
+        else
+            time(3) = finish(3) - start(3) + 60
+            finish(2) = finish(2) - 1
+        end if
+
+        if (finish(2) >= start(2)) then 
+            time(2) = finish(2) - start(2)
+        else
+            time(2) = finish(2) - start(2) + 60
+            finish(1) = finish(1) - 1
+        end if
+
+        time(1) = finish(1) - start(1)
+
+    end subroutine get_time
+
 
 end module utils

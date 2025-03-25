@@ -1,6 +1,7 @@
 module moments
     ! Updated code from ref. https://journals.aps.org/prl/pdf/10.1103/PhysRevLett.120.220604
     use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
+    ! use stdlib_linalg
     use stdlib_linalg_lapack, only: steqr
     use stdlib_linalg, only: solve_lu
 
@@ -11,7 +12,7 @@ module moments
 
     contains
 
-    subroutine shrink (a_iso, M, N, a_bar, n_bar)
+    subroutine shrink (a_iso, M, a_bar, n_bar)
     !  ------------------------------------------------------------------
     !  Optimally approximates N inequivalent nuclei with hyperfine
     !  coupling constants a(j) by M < N sets of equivalent nuclei
@@ -19,41 +20,51 @@ module moments
     !  ------------------------------------------------------------------
     !  We use integer*8 so that we can deal with all M < 64:
  
-        real(dp), intent(in)  :: a_iso(N)  ! Isotropic hyperfine couplings 
-        integer, intent(in)   :: N         ! Number of nuclear spins
-        integer, intent(in)   :: M         ! Number of symmetry blocks
-        real(dp), intent(out) :: a_bar(M) ! Isotropic hyperfine couplings 
-        integer, intent(out)  :: n_bar(M) ! Isotropic hyperfine couplings 
+        real(dp), intent(in)              :: a_iso(:)  ! Isotropic hyperfine couplings 
+        integer, intent(inout)            :: M         ! Number of symmetry blocks
+        real(dp), allocatable,intent(out) :: a_bar(:) ! Isotropic hyperfine couplings 
+        integer, allocatable, intent(out) :: n_bar(:) ! Isotropic hyperfine couplings 
         
-        real(dp) :: W(N)
-        real(dp) :: w_bar(M)
-        real(dp) :: aw_bar(M)
-        real(dp) :: atemp(M)
-        integer :: nftot
-        integer :: ntemp(M)
-        integer :: nfloor(M)
-        integer :: ndiff
-        real(dp) :: dmom
-        real(dp) :: emom
-        integer(i8) :: nset
-        real(dp) :: exact
-        real(dp) :: approx
-        integer :: i, j, k
-        integer(i8) :: ib
-        integer :: icode
-        integer(i8) :: nind
+        real(dp), allocatable :: W(:)
+        real(dp)              :: w_bar(M)
+        real(dp)              :: aw_bar(M)
+        real(dp)              :: atemp(M)
+        integer               :: nftot
+        integer               :: ntemp(M)
+        integer               :: nfloor(M)
+        integer               :: ndiff
+        real(dp)              :: dmom
+        real(dp)              :: emom
+        integer(i8)           :: nset
+        real(dp)              :: exact
+        real(dp)              :: approx
+        integer               :: i, j, k
+        integer(i8)           :: ib
+        integer               :: icode
+        integer(i8)           :: nind
 
+        if (size(a_iso) == 0) then
+            allocate(a_bar(0))
+            allocate(n_bar(0))
+            M = 0
+            return
+        end if
+        
+        allocate(a_bar(M))
+        allocate(n_bar(M))
+        allocate(W(size(a_iso)))
+        
         ! It only makes any sense to call this subroutine with M < N:
-        if (M >= N) stop 'Error: Symmetrisation routine requires M < N'
+        if (M >= size(a_iso)) stop 'Error: Symetry reduction requires M<N'
     
         W = 1.0_dp
 
         ! Optimum solution with non-integer weights:
-        call quad_rule (n,w,a_iso,m,w_bar,aw_bar)
+        call quad_rule (size(a_iso),w,a_iso,m,w_bar,aw_bar)
        
         nfloor = int(w_bar)
         nftot = sum(nfloor)
-        ndiff = n-nftot
+        ndiff = size(a_iso)-nftot
 
         ! Optimum solution with integer weights:
         dmom = huge(0.0_dp)
@@ -117,7 +128,7 @@ module moments
 
         do k=1,N
             q2 = norm2(q)
-            if (q2 == 0.0_dp) stop "Error: Mano's code throws error here, no idea why"
+            if (q2 == 0.0_dp) stop 'quad_rule 1'
             p(:, k) = q/q2
             q = X_init*P(:, k)
 
@@ -138,7 +149,7 @@ module moments
         
         call steqr('I', N, X, E(1:size(E)-1), Z, ldz, work, info)
 
-        if (info /= 0) stop 'Error: Eigenvalue algorithm in Stieltjes procedure did not work properly.'
+        if (info /= 0) stop 'Eigenvalue algorithm in Stieltjes procedure did not work properly.'
 
         do j = 1,N
             w(j) = (weight*Z(1,j))**2

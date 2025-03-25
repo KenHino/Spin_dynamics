@@ -5,10 +5,7 @@ module spinop
 
     implicit none
     private 
-    public :: get_spinop, spin_magnitude, spin_half_mag
-
-    real(dp), parameter :: spin_half_mag = sqrt(0.75_dp) ! Magnitude of total spin vector of a spin-1/2 particle
-
+    public :: get_spinop
 
     interface get_spinop
     ! Construct Sx,Sy,Sz,S+ and S- operators for particle with spin multiplicity g_I 
@@ -96,13 +93,5 @@ module spinop
 
 
     end subroutine get_spinop_sp
-
-    function spin_magnitude(mult) result(S)
-        integer, intent(in) :: mult
-        real(dp)            :: S
-
-        ! S = sqrt(real((mult-1)*S, kind=dp))
-        
-    end function spin_magnitude
 
 end module spinop
