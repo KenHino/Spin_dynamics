@@ -72,25 +72,26 @@ module hamiltonian
 
         ! Initialise indices which keep track of off-diagonal elements
         start = N + 1
-
+        
         ! Add diagonal terms of electronic Hamiltonian (S1z, S2z, S1zS2z, 1)
         Hel_diag = sys%e1%w*S1z + sys%e2%w*S2z & ! Zeeman
-                    + (2*sys%J + (0.0_dp, 1.0_dp)*delta_k)*S1zS2z ! exchange and recombination
+                    + (2*sys%J + (0.0_dp, 2.0_dp)*delta_k)*S1zS2z ! exchange and recombination
+
         ! There is also an identity term arising from K
-        Hel_diag%data = Hel_diag%data - (0.0_dp, 1.0_dp)*k_bar
+        Hel_diag%data = Hel_diag%data - (0.0_dp, 0.5_dp)*k_bar
         
         H_tmp = kron_iden(Hel_diag, sys%Z1*sys%Z2)
         H_coo%data(1:N) = H_tmp%data
         H_coo%index(:, 1:N) = H_tmp%index
 
         ! Add off-diagonal terms of electronic Hamiltonian (S1+S2-, S1-S2+)
-        H_tmp = kron_iden((sys%J + (0.0_dp, 0.5_dp)*delta_k)*S1pS2m, sys%Z1*sys%Z2)
+        H_tmp = kron_iden((sys%J + (0.0_dp, 1.0_dp)*delta_k)*S1pS2m, sys%Z1*sys%Z2)
         end = start+H_tmp%nnz-1
         H_coo%data(start:end) = H_tmp%data
         H_coo%index(:, start:end) = H_tmp%index
         start = end + 1
 
-        H_tmp = kron_iden((sys%J + (0.0_dp, 0.5_dp)*delta_k)*S1mS2p, sys%Z1*sys%Z2)
+        H_tmp = kron_iden((sys%J + (0.0_dp, 1.0_dp)*delta_k)*S1mS2p, sys%Z1*sys%Z2)
         end = start+H_tmp%nnz-1
         H_coo%data(start:end) = H_tmp%data
         H_coo%index(:, start:end) = H_tmp%index

@@ -1,5 +1,6 @@
 module symmetry
     use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
+    USE omp_lib
     use variables
     use hamiltonian
     use class_observables
@@ -19,14 +20,13 @@ module symmetry
         type(RNG_t), intent(inout)         :: rng
         character(len=600),  intent(inout) :: out
 
+        integer(i8), allocatable       :: seeds(:,:) 
         type(observables)              :: res 
         integer(i8)                    :: Z
         integer                        :: N_steps
         real(dp), allocatable          :: a1_bar(:), a2_bar(:)
         integer, allocatable           :: n1_bar(:), n2_bar(:)
         integer, allocatable           :: N_bar(:)
-
-
         integer, allocatable           :: K_init(:,:), K(:,:) 
         integer, allocatable           :: gI1(:), gI2(:) 
         integer(i8), allocatable       :: Z_current(:)
@@ -37,6 +37,9 @@ module symmetry
         type(observables), allocatable :: res_current(:)
         character(len=600)             :: folder
         character(len=16)              :: tmp
+        integer                        :: start
+        integer, dimension(3)          :: begin, finish, time, total
+
         integer :: maxi
 
         integer :: i, j
@@ -60,46 +63,52 @@ module symmetry
 
         call cartesian_product(n_bar, K_init)
         call sort_col_prod(K_init, Z_current, K)
+        
+        maxi = 0
+        total = 0
 
+        allocate(res_current(size(K, dim=2)))
+        allocate(seeds(size(K, dim=2), 2))
 
         allocate(gI1(sim%M1))
         allocate(gI2(sim%M2))
 
-        maxi = 0
+        do i=1,size(seeds, dim=1)
+            seeds(i,1) = rng%next()
+            seeds(i,2) = rng%next()
+        end do
         
-        allocate(res_current(size(K, dim=2)))
+        if (sim%isRestart) then
+            start = sim%restart
+        else
+            start = 1
+        end if    
 
-        !$OMP PARALLEL DO SHARED(sys, sim, rng, K, Z_current, a1_bar, a2_bar, n1_bar, n2_bar, Z, res_current)&
-        !$OMP& PRIVATE(sys_new, w_k, folder, tmp, gI1, gI2)       
-        do i=1,size(K, dim=2)
+        do i=start,size(K, dim=2)
+
+            call itime(begin)
+            call rng%set_seed(seeds(i,:))
+
+            ! Make these two into pointers
             gI1 = K(1:sim%M1,i)
-            gI2 = K(sim%M1+1:1:sim%M1+sim%M2,i)
+            gI2 = K(sim%M1+1:sim%M1+sim%M2,i)
             w_ij = weight(n1_bar, gI1) * weight(n2_bar, gI2)
-            ! Z_current(i) = int(product(gI1), kind=i8) * int(product(gI2), kind=i8)
-            ! print*, Z_current
             w_k = real(w_ij*Z_current(i), kind=dp)/real(Z, kind=dp) 
-            if (w_k > sim%block_tol) then
-                
-                write(tmp,'(I0)') i ! converting integer to string using a 'internal file'
+
+            if (w_k >= sim%block_tol) then
+                write(tmp,'(I0)') i 
                 folder = sim%output_folder // '/hamiltonian_' // trim(tmp)
                 call system(' mkdir ' // folder // ' > /dev/null 2>&1')
                 call reduce_system(sys, gI1, a1_bar, gI2, a2_bar, sys_new)
-                
-                ! It only makes sense to use trace sampling if the nuclear Hilbert space is larger than the amount of samples used 
-                if (Z_current(i) <= sim%N_samples) then
-                    print'(A, I0, A, I0)', 'starting exact dynamics of hamiltonian ' , i, '/' , size(K,dim=2)
-                    print'(A, I0)', 'Z = ', Z_current(i)   
-                    print'(A, I0, A, F0.16)', 'weight_', i ,' = ', w_k   
-                    call exact_dynamics(sys_new, sim, res_current(i), folder)
-                else 
-                    if (Z_current(i) > maxi) then 
-                        maxi = Z_current(i)
-                    end if
-                    print'(A, I0, A, I0)', 'starting trace sampling of hamiltonian ' , i,  '/' , size(K,dim=2)
-                    print'(A, I0)', 'Z = ', Z_current(i)   
-                    print'(A, I0, A, F0.16)', 'weight_', i ,' = ', w_k   
-                    call trace_sampling(sys_new, sim, rng, res_current(i), folder)
+
+                if (Z_current(i) > maxi) then 
+                    maxi = Z_current(i)
                 end if
+                print'(A, I0, A, I0)', 'starting trace sampling of hamiltonian ' , i,  '/' , size(K,dim=2)
+                print'(A, I0)', 'Z = ', Z_current(i)   
+                print'(A, I0, A, F0.16)', 'weight_', i ,' = ', w_k   
+                call trace_sampling_para(sys_new, sim, rng, res_current(i), folder)
+
                 ! Weight result of simulation 
                 call res_current(i)%scale(real(w_k, kind=dp))
             else
@@ -109,15 +118,20 @@ module symmetry
                 call res_current(i)%malloc(N_steps+1)
                 call res_current(i)%set(0.0_dp)
             end if
+            call itime(finish)
+
+            call get_time(begin, finish, time)
+            print'(A29,I0,A2,I2,A1,I2,A1,I2)', 'Time elapsed for hamiltonian ', i ,': ', time(1), ':',time(2), ':', time(3) 
+            call add_time(total, time)
+
         end do
-        !$OMP END PARALLEL DO
 
         do i=1,size(K, dim=2)
             call res%update(res_current(i))        
         end do
 
-
-        print*, maxi
+        print'(A20,I2,A1,I2,A1,I2)', 'Total time elapsed: ', total(1), ':',total(2), ':', total(3) 
+        print'(A, I0)', 'Nuclear subspace of largest Hamiltonian: ' ,maxi
         
         call res%get_kinetics(sim%dt, sys%kS, sys%kT)
         call res%output(out)
@@ -134,14 +148,17 @@ module symmetry
         sys_new%D = sys%D
         sys_new%kS = sys%kS
         sys_new%kT = sys%kT
+        
 
+        sys_new%e1%w = sys%e1%w 
         allocate(sys_new%e1%g_I(size(g_I1)))
         allocate(sys_new%e1%a_iso(size(g_I1)))
         sys_new%e1%g_I = g_I1
         sys_new%e1%a_iso = a1_iso
         sys_new%e1%isotropic = .true.
         sys_new%Z1 = product(sys_new%e1%g_I)
-
+        
+        sys_new%e2%w = sys%e2%w 
         allocate(sys_new%e2%g_I(size(g_I2)))
         allocate(sys_new%e2%a_iso(size(g_I2)))
         sys_new%e2%g_I = g_I2

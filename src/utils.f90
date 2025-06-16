@@ -4,7 +4,7 @@ module utils
     use stdlib_sorting
 
     implicit none
-    public :: eye_cp, print_matrix, coo_to_csr, get_time, sort_col_prod
+    public :: eye_cp, print_matrix, coo_to_csr, get_time, sort_col_prod, add_time
     private :: scale_sparse_cdp, scale_sparse_dp, add_sparse
 
 
@@ -43,10 +43,6 @@ module utils
 
         do i=1,size(indx)
             A_sort(:,i) = A(:, indx(i))
-        end do
-
-        do i = 1, size(a, 1)
-            print*, A_sort(i, :) 
         end do
 
         deallocate(A)
@@ -163,7 +159,7 @@ module utils
     end subroutine 
 
     subroutine get_time(start, finish, time) 
-        ! subroutine that gets the time elapsed from itime output
+        ! Subroutine that gets the time elapsed from itime output
         integer, intent(inout) :: start(3), finish(3) 
         integer, intent(out) :: time(3)
 
@@ -185,5 +181,25 @@ module utils
 
     end subroutine get_time
 
+    subroutine add_time(total, t)
+        ! Subroutine that updates total timer by time t (h:m:s format)
+        integer, intent(inout) :: total(3) 
+        integer, intent(in)    :: t(3) 
+
+        total(3) = total(3) + t(3)
+        if (total(3) >= 60) then 
+            total(3) = total(3) - 60 
+            total(2) = total(2) + 1 
+        end if
+
+        total(2) = total(2) + t(2)
+        if (total(2) >= 60) then 
+            total(2) = total(2) - 60 
+            total(1) = total(1) + 1 
+        end if
+
+        total(1) = total(1) + t(1) 
+
+    end subroutine add_time
 
 end module utils

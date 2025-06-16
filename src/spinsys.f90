@@ -1,5 +1,5 @@
 module variables
-    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
     use utils
     use stdlib_linalg, only: trace, eye
     use finer
@@ -36,18 +36,21 @@ module variables
     end type sys_param
     
     type sim_param
-        character(:), allocatable :: type         ! spin state in which radical pair is formed
-        real(dp), allocatable     :: B(:)             ! magnetic fields  
-        character(:), allocatable :: init_state       ! spin state in which radical pair is formed
-        integer                   :: N_samples        ! # of Monte Carlo samples
-        real(dp)                  :: t_end            ! duration of simulation
-        real(dp)                  :: dt               ! integrator timestep
-        integer                   :: N_krylov         ! size of Krylov space
-        real(dp)                  :: tol              ! tolerance for recalculating the Krylov subspace
-        integer                   :: M1               ! Number of symmetry blocks
-        integer                   :: M2               ! Number of symmetry blocks
-        real(dp)                  :: block_tol        ! Tolerance for discarding symmetry blocks
-        character(:), allocatable :: output_folder    ! spin state in which radical pair is formed
+        character(:), allocatable :: type          ! spin state in which radical pair is formed
+        real(dp), allocatable     :: B(:)          ! magnetic fields  
+        character(:), allocatable :: init_state    ! spin state in which radical pair is formed
+        integer(i8)               :: seed(2)       ! Seed of rng generator
+        integer                   :: N_samples     ! # of Monte Carlo samples
+        real(dp)                  :: t_end         ! duration of simulation
+        real(dp)                  :: dt            ! integrator timestep
+        integer                   :: N_krylov      ! size of Krylov space
+        real(dp)                  :: tol           ! tolerance for recalculating the Krylov subspace
+        integer                   :: M1            ! Number of symmetry blocks
+        integer                   :: M2            ! Number of symmetry blocks
+        real(dp)                  :: block_tol     ! Tolerance for discarding symmetry blocks
+        character(:), allocatable :: output_folder ! spin state in which radical pair is formed
+        integer                   :: restart       ! for symmetry calcs that need restarting    
+        logical                   :: isRestart      
     end type sim_param
 
     contains
@@ -96,6 +99,7 @@ module variables
         call fini%get(section_name='simulation parameters', option_name='dt', val=sim%dt, error=err)
         if (err /= 0) stop 'Error: Propagation timestep is missing'
 
+        call fini%get(section_name='simulation parameters', option_name='seed', val=sim%seed)
         call fini%get(section_name='simulation parameters', option_name='N_samples', val=sim%N_samples)
         call fini%get(section_name='simulation parameters', option_name='simulation_time', val=sim%t_end)
         sim%t_end = (sim%t_end*gamma_e)/1000.0_dp
@@ -105,6 +109,12 @@ module variables
         call fini%get(section_name='simulation parameters', option_name='integrator_tolerance', val=sim%tol)
         call fini%get(section_name='simulation parameters', option_name='M1', val=sim%M1)
         call fini%get(section_name='simulation parameters', option_name='M2', val=sim%M2)
+        call fini%get(section_name='simulation parameters', option_name='restart', val=sim%restart, error=err)
+        if (err /= 0) then
+            sim%isRestart = .false.
+        else
+            sim%isRestart = .true.
+        end if
 
         call fini%get(section_name='simulation parameters', option_name='output_folder', val=tmp2)
         sim%output_folder = trim(tmp2)

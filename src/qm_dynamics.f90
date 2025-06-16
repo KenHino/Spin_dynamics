@@ -1,5 +1,5 @@
 module dynamics
-    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: iso_fortran_env, only: dp => real64, i8 => int64
     use variables
     use kroenecker
     use class_observables
@@ -22,7 +22,7 @@ module dynamics
     contains
 
     subroutine exact_dynamics(sys, sim, res, out)
-    ! Run quantum mechanical dynamics with full nuclear Hilber space
+    ! Run quantum mechanical dynamics with full nuclear Hilbert space
         type(sys_param), intent(in)              :: sys 
         type(sim_param), intent(inout)           :: sim 
         type(observables), intent(out)           :: res 
@@ -285,6 +285,7 @@ module dynamics
             complex(dp), allocatable :: Q(:, :) 
             ! type(observables)        :: sample_obs
             type(observables), allocatable :: sample_obs(:)
+            integer(i8), allocatable       :: seeds(:,:) 
     
             integer  :: i, j, k
         
@@ -311,10 +312,19 @@ module dynamics
             
             allocate(sample_obs(sim%N_samples))
     
-            !$OMP PARALLEL DO SHARED(sys,sim,rng, init_pop,N, sample_obs)&
-            !$OMP& PRIVATE(t,k,c2,c_m2,c,psi,Q, P_S, P_T0, P_Tp, P_Tm,A,A_exp,Z_ket)
+            allocate(seeds(sim%N_samples, 2))
+
+            do i=1,size(seeds, dim=1)
+                seeds(i,1) = rng%next()
+                seeds(i,2) = rng%next()
+            end do
+
+            !$OMP PARALLEL DO SHARED(sys,sim,init_pop,N, sample_obs)&
+            !$OMP& PRIVATE(t,k,c2,c_m2,c,psi,Q, P_S, P_T0, P_Tp, P_Tm,A,A_exp,Z_ket,rng)
             do i=1, sim%N_samples
-                call sample_SUZ(rng, Z_ket)
+    
+                call rng%set_seed(seeds(i,:))
+                 call sample_SUZ(rng, Z_ket)
                 psi = kron_vector(theta, Z_ket)
                 call sample_obs(i)%malloc(N_steps+1)
                 call sample_obs(i)%set(0.0_dp)
@@ -326,7 +336,7 @@ module dynamics
                 t = 0.0_dp
                 k = 2            
     
-                print*, 'starting sample ', i
+                ! print*, 'starting sample ', i
                 do while (t < sim%t_end)
     
                     ! print*, 'Generating Krylov subspace at time t =  ', t
