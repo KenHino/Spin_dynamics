@@ -59,8 +59,8 @@ program main
 
         select case (sim%type)
             case('trace_sampling')
-                call trace_sampling(sys, sim, rng, res, folder)
-                ! call trace_sampling_para(sys, sim, rng, res, folder)
+                ! call trace_sampling(sys, sim, rng, res, folder)
+                call trace_sampling_para(sys, sim, rng, res, folder)
             case('symmetry_dynamics')
                 print*, sim%B(i)
                 call symmetrised_dynamics(sys, sim, rng, folder)
