@@ -36,6 +36,8 @@ $ sudo apt-get install libomp-dev
 ## Clone the repository 
 ```bash
 $ git clone https://github.com/KenHino/Spin_dynamics.git
+$ cd Spin_dynamics
+$ git submodule update --init
 $ fpm build
 ```
 
