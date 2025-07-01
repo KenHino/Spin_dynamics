@@ -44,3 +44,9 @@ $ fpm build
 $ mkdir out
 $ build/gfortran_BFCF334AC0CBF7DD/app/spinchem input2.ini
 ```
+
+## References
+
+- [Trace sampling](https://pubs.aip.org/aip/jcp/article/154/8/084121/76322)
+- [Symmetry dynamics](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.120.220604)
+- [Semi-classical](https://pubs.aip.org/aip/jcp/article/139/12/124106/74601)
