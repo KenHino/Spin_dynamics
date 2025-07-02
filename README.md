@@ -33,18 +33,28 @@ OS Type:     Linux
 $ sudo apt-get install libomp-dev
 ```
 
-## Clone the repository 
+## Clone the repository
 ```bash
 $ git clone https://github.com/KenHino/Spin_dynamics.git
 $ cd Spin_dynamics
 $ git submodule update --init
-$ fpm build
+$ fpm install --profile release --prefix .
 ```
 
 ## Run
 ```bash
 $ mkdir out
-$ build/gfortran_BFCF334AC0CBF7DD/app/spinchem input2.ini
+$ export PATH=$PWD/bin:$PATH
+$ spinchem input2.ini
+```
+
+## Build documents
+```bash
+$ cd Spin_chemistry
+$ uv sync # If not already installed
+$ uv run mkdocs build
+# or
+$ uv run mkdocs serve
 ```
 
 ## References

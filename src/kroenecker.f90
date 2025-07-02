@@ -5,7 +5,7 @@ module kroenecker
 
 
     implicit none
-    private 
+    private
     public :: kron, kron_vector, kron_iden
 
     interface kron
@@ -29,7 +29,7 @@ module kroenecker
     ! Returns Kroenecker product of two dense matrices A and B
        complex(dp), intent(in)  :: A(:,:), B(:,:)
        complex(dp), allocatable :: C(:,:)
-       
+
        integer :: i, j, k, l
        integer :: m, n, p, q
 
@@ -50,7 +50,7 @@ module kroenecker
                 C(n:m,p:q) = A(i,j)*B
             end do
         end do
-       
+
     end function kron_dense
 
     function kron_sp(A, B) result(C)
@@ -63,7 +63,7 @@ module kroenecker
         integer :: nrows, ncols
         integer :: nnz
 
-        nrows = A%nrows * B%nrows 
+        nrows = A%nrows * B%nrows
         ncols = A%ncols * B%ncols
         nnz = A%nnz * B%nnz
 
@@ -86,7 +86,7 @@ module kroenecker
        complex(dp), intent(in)  :: A(:), B(:)
        complex(dp), allocatable :: C(:)
 
-       integer :: i  
+       integer :: i
 
        allocate(C(size(A)*size(B)))
 
@@ -101,21 +101,21 @@ module kroenecker
        complex(dp), intent(in)  :: A(:,:)
        integer, intent(in)      :: N
        complex(dp), allocatable :: B(:,:)
-       
+
        complex(dp), allocatable :: C(:,:,:,:)
-       integer                  :: i                     
+       integer                  :: i
 
         allocate(B(size(A,1)*N,size(A,2)*N))
         allocate(C(N,size(A,1),N,size(A,2)))
-            
-        C = cmplx(0.0_dp, 0.0_dp, kind=dp)  
+
+        C = cmplx(0.0_dp, 0.0_dp, kind=dp)
 
         do i = 1,N
             C(i,:,i,:) = A
-        end do 
+        end do
 
         B = reshape(C, [size(A,1)*N,size(A,2)*N])
-       
+
     end function kron_iden_right_dense
 
 
@@ -124,15 +124,15 @@ module kroenecker
        integer, intent(in)      :: A
        complex(dp), intent(in)  :: N(:,:)
        complex(dp), allocatable :: B(:,:)
-       
+
        integer :: i
        integer :: m, z, p
 
 
         allocate(B(size(N,1)*A,size(N,2)*A))
-       
-        B = cmplx(0.0_dp, 0.0_dp, kind=dp)  
-       
+
+        B = cmplx(0.0_dp, 0.0_dp, kind=dp)
+
         m = 0
         z = 0
         p = 0
@@ -143,7 +143,7 @@ module kroenecker
             p=z+size(N,dim=2) - 1
             B(z:m,z:p) = N
         end do
-       
+
     end function kron_iden_left_dense
 
     function kron_iden_right_sp(A,N) result(B)
@@ -157,14 +157,14 @@ module kroenecker
         integer :: nrows, ncols
         integer :: nnz
 
-        nrows = A%nrows * N 
+        nrows = A%nrows * N
         ncols = A%ncols * N
         nnz = A%nnz * N
 
         call B%malloc(nrows, ncols, nnz)
-       
+
         do i=1,size(A%data)
-            B%index(1, 1+(i-1)*N:i*N) = [(j, j=1+(A%index(1, i)-1)*N, A%index(1, i)*N)]  
+            B%index(1, 1+(i-1)*N:i*N) = [(j, j=1+(A%index(1, i)-1)*N, A%index(1, i)*N)]
             B%index(2, 1+(i-1)*N:i*N) = [(j, j=1+(A%index(2, i)-1)*N, A%index(2, i)*N)]
             B%data(1+(i-1)*N:i*N) = A%data(i)
         end do
@@ -182,7 +182,7 @@ module kroenecker
         integer :: nrows, ncols
         integer :: nnz
 
-        nrows = A * N%nrows 
+        nrows = A * N%nrows
         ncols = A * N%ncols
         nnz = A * N%nnz
 
@@ -191,11 +191,13 @@ module kroenecker
         ! print*, size(B%data)
 
         do i=1,A
-            B%index(:, 1+(i-1)*size(N%data):i*size(N%data)) = N%index + (i-1)*size(N%data)
+            !Bug
+            !B%index(:, 1+(i-1)*size(N%data):i*size(N%data)) = N%index + (i-1)*size(N%data)
+            B%index(:, 1+(i-1)*size(N%data):i*size(N%data)) = N%index + (i-1)*N%nrows
             B%data(1+(i-1)*size(N%data):i*size(N%data)) = N%data
         end do
-       
+
     end function kron_iden_left_sp
 
 
-end module kroenecker 
+end module kroenecker
