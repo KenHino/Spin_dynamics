@@ -57,6 +57,27 @@ $ uv run mkdocs build
 $ uv run mkdocs serve
 ```
 
+## For Apple Silicon
+In Apple Silicon device, gcc is aliased to clang, which does not support openmp.
+Thus, one needs to install gcc and set manually.
+```bash
+brew tap fortran-lang/fortran # will give you v0.12.0 on Apple Silicon
+brew install libomp gcc fpm
+export PATH="/opt/homebrew/opt/gcc/bin:$PATH"   # let plain “gcc” resolve to gcc-15
+
+# pick compilers
+export FPM_FC=gfortran-15
+export FPM_CC=gcc-15
+export FPM_CXX=g++-15
+
+# add OpenMP once, so it’s on every Fortran *and* C/C++ compile
+export FPM_FFLAGS="-fopenmp"
+export FPM_CFLAGS="-fopenmp"
+export FPM_CXXFLAGS="-fopenmp"
+
+/opt/homebrew/bin/fpm install --profile release --prefix .
+```
+
 ## References
 
 - [Trace sampling](https://pubs.aip.org/aip/jcp/article/154/8/084121/76322)
