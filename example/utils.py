@@ -259,6 +259,9 @@ def _dump_simulation_parameters(
     dt: float,
     N_krylov: int,
     integrator_tolerance: float,
+    M1: int,
+    M2: int,
+    block_tolerance: float,
 ) -> None:
     """
     Dump simulation parameters to input file
@@ -275,14 +278,19 @@ def _dump_simulation_parameters(
         f.write(f"dt = {dt}\n")
         f.write(f"N_krylov = {N_krylov}\n")
         f.write(f"integrator_tolerance = {integrator_tolerance}\n")
-        if simulation_type == "trace_sampling":
+        if simulation_type in ["trace_sampling", "symmetry_dynamics"]:
             f.write(f"N_samples = {N_samples}\n")
+        if simulation_type == "symmetry_dynamics":
+            f.write(f"M1 = {M1}\n")
+            f.write(f"M2 = {M2}\n")
+            f.write(f"block_tolerance = {block_tolerance}\n")
 
 
 def dump_input(
     sim: rp.simulation.HilbertSimulation,
     input_file_name: pathlib.Path | str = "input.ini",
     *,
+    remove_files: bool = True,
     isotropic: bool = True,
     J: float = 0.0,
     D: np.ndarray | float = 0.0,
@@ -298,7 +306,9 @@ def dump_input(
     dt: float = 1.0,
     N_krylov: int = 7,
     integrator_tolerance: float = 1e-5,
-    remove_files: bool = True,
+    M1: int = 1,
+    M2: int = 1,
+    block_tolerance: float = 1e-5,
 ) -> tuple[pathlib.Path, pathlib.Path]:
     """
     Dump input file for Spin_chemistry from radicalpy.HilbertSimulator
@@ -399,6 +409,9 @@ def dump_input(
         dt=dt * 1e09,  # convert to ns
         N_krylov=N_krylov,
         integrator_tolerance=integrator_tolerance,
+        M1=M1,
+        M2=M2,
+        block_tolerance=block_tolerance,
     )
 
     return input_path, output_path
@@ -426,6 +439,8 @@ def parse_output(
     data_dict = {}
 
     for file in subdir_path.glob("*.data"):
+        if file.stem[-5:] != "_prob":
+            continue
         data = np.loadtxt(file)
         column_name = file.stem
         data_dict[column_name] = data
