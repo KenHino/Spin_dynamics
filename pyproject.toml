@@ -1,0 +1,25 @@
+[project]
+name = "spin-dynamics"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fpm>=0.10.1",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.3",
+    "mkdocs>=1.6.1",
+    "mkdocs-codeinclude-plugin>=0.2.1",
+    "mkdocs-include-markdown-plugin>=7.1.6",
+    "mkdocs-jupyter>=0.25.1",
+    "mkdocs-material>=9.6.15",
+    "numpy>=2.3.1",
+    "polars>=1.31.0",
+    "pre-commit>=4.2.0",
+    "pymdown-extensions>=10.16",
+    "python-markdown-math>=0.9",
+    "radicalpy>=0.8.1",
+    "ruff>=0.12.1",
+    "scipy>=1.16.0",
+    "ty>=0.0.1a12",
+]

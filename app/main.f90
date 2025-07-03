@@ -23,15 +23,15 @@ program main
     type(RNG_t)               :: rng
     type(COO_cdp_type)        :: H_coo
     type(CSR_cdp_type)        :: H
-    type(observables)         :: res 
+    type(observables)         :: res
     logical                   :: inpExists
 
     integer(i8) :: seed(2)
     integer :: i
 
     integer, dimension(3) :: start, finish, time
-    
-    
+
+
     call itime(start)
     print*, 'Program initialised'
 
@@ -54,13 +54,16 @@ program main
         sys%e2%w = (sys%e2%g/g_e)*sim%B(i)
 
         write(guz,'(F0.3)') sim%B(i) ! converting integer to string using a 'internal file'
-        folder = sim%output_folder // '/' // trim(guz)  
+        folder = sim%output_folder // '/' // trim(guz)
         call system(' mkdir ' // folder)
 
         select case (sim%type)
             case('trace_sampling')
-                call trace_sampling(sys, sim, rng, res, folder)
-                ! call trace_sampling_para(sys, sim, rng, res, folder)
+                ! call trace_sampling(sys, sim, rng, res, folder)
+                call trace_sampling_para(sys, sim, rng, res, folder)
+            case ('exact_dynamics')
+                call exact_dynamics(sys, sim, res, folder)
+                !call exact_dynamics_dense(sys, sim, res, folder)
             case('symmetry_dynamics')
                 print*, sim%B(i)
                 call symmetrised_dynamics(sys, sim, rng, folder)
@@ -75,7 +78,7 @@ program main
     call get_time(start, finish, time)
 
     if (sim%type /= 'symmetry_dynamics') then
-        print'(A15,I2,A1,I2,A1,I2)', 'Time elapsed:  ', time(1), ':',time(2), ':', time(3) 
+        print'(A15,I2,A1,I2,A1,I2)', 'Time elapsed:  ', time(1), ':',time(2), ':', time(3)
     end if
 
 end program main

@@ -10,6 +10,7 @@ source-dir="src"
 
 [dependencies]
 stdlib = { git="https://github.com/fortran-lang/stdlib", branch="stdlib-fpm" }
+openmp="*"
 
 [executable]
 name="spinchem"

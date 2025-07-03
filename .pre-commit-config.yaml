@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-docstring-first
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: format
+        name: format
+        entry: uv run ruff format example
+        language: system
+        pass_filenames: false
+
+      - id: fix-lint
+        name: fix-lint
+        entry: uv run ruff check example --fix
+        language: system
+        pass_filenames: false
+
+      - id: typecheck
+        name: ty
+        entry: uv run ty check example
+        language: system
+        pass_filenames: false
