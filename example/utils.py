@@ -81,7 +81,11 @@ def _validate_input(
     ], (
         f"given simulation_type is not in ['trace_sampling', 'exact_dynamics', 'symmetry_dynamics', 'semi_classical']: {simulation_type=}"
     )
-    if _simulation_type not in ["trace_sampling", "exact_dynamics"]:
+    if _simulation_type not in [
+        "trace_sampling",
+        "exact_dynamics",
+        "symmetry_dynamics",
+    ]:
         raise NotImplementedError(
             f"simulation_type {simulation_type} is not yet debugged"
         )

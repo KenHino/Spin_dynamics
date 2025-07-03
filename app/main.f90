@@ -63,6 +63,7 @@ program main
                 call trace_sampling_para(sys, sim, rng, res, folder)
             case ('exact_dynamics')
                 call exact_dynamics(sys, sim, res, folder)
+                !call exact_dynamics_dense(sys, sim, res, folder)
             case('symmetry_dynamics')
                 print*, sim%B(i)
                 call symmetrised_dynamics(sys, sim, rng, folder)

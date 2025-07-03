@@ -228,6 +228,17 @@ module hamiltonian
         S2y = kron_iden(2, Sy)
         S2z = kron_iden(2, Sz)
 
+        ! print*, 'Sx', Sx
+        ! print*, 'Sy', Sy
+        ! print*, 'Sz', Sz
+        ! print*, 'S1x', S1x
+        ! print*, 'S1y', S1y
+        ! print*, 'S1z', S1z
+        ! print*, 'S2x', S2x
+        ! print*, 'S2y', S2y
+        ! print*, 'S2z', S2z
+        ! stop
+
         ! Construct 4x4 electronic spin Hamiltonian
         H_el = (0.0_dp, 0.0_dp)
         ! Add Zeeman terms
@@ -235,9 +246,13 @@ module hamiltonian
         ! Combine isotropic and anisotropic electron coupling
         D_full = sys%D + 2.0_dp*sys%J*eye(3)
         ! Add coupling
-        H_el = H_el + kron(Sx, D_full(1,1)*Sx + D_full(1,2)*Sy + D_full(1,3)*Sz) &
-                    + kron(Sy, D_full(2,1)*Sx + D_full(2,2)*Sy + D_full(2,3)*Sz) &
-                    + kron(Sz, D_full(3,1)*Sx + D_full(3,2)*Sy + D_full(3,3)*Sz)
+        ! H_el = H_el + kron(Sx, D_full(1,1)*Sx + D_full(1,2)*Sy + D_full(1,3)*Sz) &
+        !             + kron(Sy, D_full(2,1)*Sx + D_full(2,2)*Sy + D_full(2,3)*Sz) &
+        !             + kron(Sz, D_full(3,1)*Sx + D_full(3,2)*Sy + D_full(3,3)*Sz)
+        ! H_el = H_el + D_full(1, 1) * S1x * S2x + D_full(1, 2) * S1x * S2y + D_full(1, 3) * S1x * S2z &
+        !             + D_full(2, 1) * S1y * S2x + D_full(2, 2) * S1y * S2y + D_full(2, 3) * S1y * S2z &
+        !             + D_full(3, 1) * S1z * S2x + D_full(3, 2) * S1z * S2y + D_full(3, 3) * S1z * S2z
+        H_el = H_el + D_full(1, 1) * S1x * S2x + D_full(2, 2) * S1y * S2y + D_full(3, 3) * S1z * S2z
         ! Add Haberkorn recombination operator
         H_el = H_el - (0.0_dp, 1.0_dp)*k_bar*eye_cp(4)
         H_el = H_el + (0.0_dp, 1.0_dp)*delta_k*(kron(Sx, Sx) + kron(Sy, Sy) + kron(Sz, Sz))
