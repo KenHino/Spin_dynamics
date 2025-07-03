@@ -62,7 +62,7 @@ def _validate_input(
     if isotropic:
         assert D[0, 0] == D[1, 1] == -0.5 * D[2, 2], f"given D is not isotropic: {D=}"
         assert D[0, 1] == D[0, 2] == D[1, 2] == 0.0, f"given D is not isotropic: {D=}"
-    _D_flat = D.reshape(-1, order="F")
+    _D_flat = D.reshape(-1, order="F") / sim.radicals[0].gamma_mT
     assert _D_flat.shape == (9,), f"given D is not a 3x3 array: {D.shape=}"
     D_flat = tuple(_D_flat)
     assert isinstance(kS, float), f"given kS is not a float: {type(kS)=}"

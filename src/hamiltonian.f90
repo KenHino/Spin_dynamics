@@ -86,7 +86,7 @@ module hamiltonian
 
         ! Add diagonal terms of electronic Hamiltonian (S1z, S2z, S1zS2z, 1)
         Hel_diag = sys%e1%w*S1z + sys%e2%w*S2z & ! Zeeman
-                    + (2*sys%J + (0.0_dp, 2.0_dp)*delta_k)*S1zS2z ! exchange and recombination
+                    + (2*sys%J + (0.0_dp, 2.0_dp)*delta_k + sys%D(3,3))*S1zS2z ! exchange and recombination
 
         ! There is also an identity term arising from K
         Hel_diag%data = Hel_diag%data - (0.0_dp, 0.5_dp)*k_bar
@@ -96,13 +96,22 @@ module hamiltonian
         H_coo%index(:, 1:N) = H_tmp%index
 
         ! Add off-diagonal terms of electronic Hamiltonian (S1+S2-, S1-S2+)
-        H_tmp = kron_iden((sys%J + (0.0_dp, 1.0_dp)*delta_k)*S1pS2m, sys%Z1*sys%Z2)
+        print*, sys%D(1,1), sys%D(2,2), sys%D(3,3), sys%J, delta_k
+        ! stop
+        if (abs(sys%D(1,1) - sys%D(2,2)) > 1.0e-12_dp) then
+            stop 'Error: sys%D(1,1) must equal sys%D(2,2) for isotropic conditions'
+        end if
+        if (abs(sys%D(1,1) + 0.5_dp*sys%D(3,3)) > 1.0e-12_dp) then
+            stop 'Error: sys%D(1,1) must equal -0.5*sys%D(3,3) for isotropic conditions'
+        end if
+
+        H_tmp = kron_iden((sys%J + (0.0_dp, 1.0_dp)*delta_k + 0.5_dp*sys%D(1,1))*S1pS2m, sys%Z1*sys%Z2)
         end = start+H_tmp%nnz-1
         H_coo%data(start:end) = H_tmp%data
         H_coo%index(:, start:end) = H_tmp%index
         start = end + 1
 
-        H_tmp = kron_iden((sys%J + (0.0_dp, 1.0_dp)*delta_k)*S1mS2p, sys%Z1*sys%Z2)
+        H_tmp = kron_iden((sys%J + (0.0_dp, 1.0_dp)*delta_k + 0.5_dp*sys%D(2,2))*S1mS2p, sys%Z1*sys%Z2)
         end = start+H_tmp%nnz-1
         H_coo%data(start:end) = H_tmp%data
         H_coo%index(:, start:end) = H_tmp%index
