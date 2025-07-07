@@ -324,7 +324,7 @@ module dynamics
             do i=1, sim%N_samples
 
                 call rng%set_seed(seeds(i,:))
-                 call sample_SUZ(rng, Z_ket)
+                call sample_SUZ(rng, Z_ket)
                 psi = kron_vector(theta, Z_ket)
                 call sample_obs(i)%malloc(N_steps+1)
                 call sample_obs(i)%set(0.0_dp)
@@ -365,6 +365,9 @@ module dynamics
                     end do
                     psi = matmul(Q, c)
                 end do
+                if (mod(i, 100) == 0) then
+                    print*, 'Sample ', i, '/', sim%N_samples, ' completed.'
+                end if
             end do
             !$OMP END PARALLEL DO
 

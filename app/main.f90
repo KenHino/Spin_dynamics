@@ -61,6 +61,8 @@ program main
             case('trace_sampling')
                 ! call trace_sampling(sys, sim, rng, res, folder)
                 call trace_sampling_para(sys, sim, rng, res, folder)
+            case('trace_sampling_serial')
+                call trace_sampling(sys, sim, rng, res, folder)
             case ('exact_dynamics')
                 call exact_dynamics(sys, sim, res, folder)
                 !call exact_dynamics_dense(sys, sim, res, folder)
