@@ -1,4 +1,4 @@
-#/2424!/usr/bin/env python
+# /2424!/usr/bin/env python
 # coding: utf-8
 
 # # Generate trace sampling input from RadicalPy simulator
@@ -211,7 +211,3 @@ plt.show()
 
 
 # In[ ]:
-
-
-
-

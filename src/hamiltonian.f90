@@ -30,9 +30,12 @@ module hamiltonian
         type(COO_cdp_type) :: S1p, S1m, S1z
         type(COO_cdp_type) :: S2p, S2m, S2z
         type(COO_cdp_type) :: S1pS2m, S1mS2p, S1zS2z
+        type(COO_cdp_type) :: E
         type(COO_cdp_type) :: Hel_diag, Hel_off
         integer            :: Z_left, Z_right
         type(COO_cdp_type) :: Ix, Iy, Iz, Ip, Im
+        real(dp)           :: zeeman_factor
+        type(COO_cdp_type) :: tmp
 
         integer :: i, j
         integer :: start, end
@@ -60,6 +63,7 @@ module hamiltonian
         S1pS2m = kron(Sp, Sm)
         S1mS2p = kron(Sm, Sp)
         S1zS2z = kron(Sz, Sz)
+        E = eye_cp_sparse(4)
 
         N = 4*sys%Z1*sys%Z2
 
@@ -85,7 +89,8 @@ module hamiltonian
         start = N + 1
 
         ! Add diagonal terms of electronic Hamiltonian (S1z, S2z, S1zS2z, 1)
-        Hel_diag = sys%e1%w*S1z + sys%e2%w*S2z & ! Zeeman
+        ! Hel_diag = sys%e1%w*S1z + sys%e2%w*S2z & ! Zeeman
+        Hel_diag = (sys%e1%w)*S1z + (sys%e2%w)*S2z & ! Zeeman
                     + (2*sys%J + (0.0_dp, 2.0_dp)*delta_k + sys%D(3,3))*S1zS2z ! exchange and recombination
 
         ! There is also an identity term arising from K
@@ -137,7 +142,14 @@ module hamiltonian
             Z_right = product(sys%e1%g_I(i+1:)) * sys%Z2
 
             ! Add SzIz (diagonal operator)
-            H_tmp = kron(kron_iden(sys%e1%a_iso(i)*S1z, Z_left), kron_iden(Iz, Z_right))
+            if (sys%e1%g_I(i) == 3) then
+                zeeman_factor = -sys%e1%w * gamma_14N / gamma_e  ! 14N
+            else if (sys%e1%g_I(i) == 2) then
+                zeeman_factor = -sys%e1%w * gamma_1H / gamma_e  ! 1H
+            else
+                stop 'Error: sys%e1%g_I(i) must be 3 or 2'
+            end if
+            H_tmp = kron(kron_iden(sys%e1%a_iso(i)*S1z + zeeman_factor * E, Z_left), kron_iden(Iz, Z_right))
             H_coo%data(1:N) = H_coo%data(1:N) + H_tmp%data
 
             ! Add SpIm and SmIp (off-diagonal elements)
@@ -174,17 +186,20 @@ module hamiltonian
             Z_left = sys%Z1 * product(sys%e2%g_I(:i-1))
             Z_right = product(sys%e2%g_I(i+1:))
 
-            ! Add SzIz (diagonal operator)
-            ! BUG
-            !H_tmp = kron(kron_iden(sys%e2%a_iso(i)*S1z, Z_left), kron_iden(Iz, Z_right))
-            H_tmp = kron(kron_iden(sys%e2%a_iso(i)*S2z, Z_left), kron_iden(Iz, Z_right))
+            ! Add (SzA + B E) Iz (diagonal operator)
+            if (sys%e2%g_I(i) == 3) then
+                zeeman_factor = -1.0_dp*sys%e2%w * gamma_14N / gamma_e  ! 14N nucleus
+            else if (sys%e2%g_I(i) == 2) then
+                zeeman_factor = -1.0_dp*sys%e2%w * gamma_1H / gamma_e   ! 1H nucleus
+            else
+                stop 'Error: sys%e2%g_I(i) must be 3 or 2'
+            end if
+            H_tmp = kron(kron_iden(sys%e2%a_iso(i)*S2z + zeeman_factor * E, Z_left), kron_iden(Iz, Z_right))
             H_coo%data(1:N) = H_coo%data(1:N) + H_tmp%data
 
             ! Remeber to change indixes back
 
             ! Add SyIy (off-diagonal, we need to add new set of indices)
-            ! BUG
-            !H_tmp = kron(kron_iden(0.5*sys%e2%a_iso(i)*S1p, Z_left), kron_iden(Im, Z_right))
             H_tmp = kron(kron_iden(0.5*sys%e2%a_iso(i)*S2p, Z_left), kron_iden(Im, Z_right))
             end = start+H_tmp%nnz-1
             H_coo%data(start:end) = H_tmp%data
@@ -192,8 +207,6 @@ module hamiltonian
             start = end + 1
 
             ! Add SxIx
-            ! BUG
-            !H_tmp = kron(kron_iden(0.5*sys%e2%a_iso(i)*S1m, Z_left), kron_iden(Ip, Z_right))
             H_tmp = kron(kron_iden(0.5*sys%e2%a_iso(i)*S2m, Z_left), kron_iden(Ip, Z_right))
             end = start+H_tmp%nnz-1
             H_coo%data(start:end) = H_tmp%data
@@ -250,8 +263,8 @@ module hamiltonian
 
         ! Construct 4x4 electronic spin Hamiltonian
         H_el = (0.0_dp, 0.0_dp)
-        ! Add Zeeman terms
-        H_el = H_el + sys%e1%w*S1z + sys%e2%w*S2z
+        ! Add Zeeman terms (electron gyromagnetic ratio is negative → overall minus sign)
+        H_el = H_el - sys%e1%w*S1z - sys%e2%w*S2z
         ! Combine isotropic and anisotropic electron coupling
         D_full = sys%D + 2.0_dp*sys%J*eye(3)
         ! Add coupling

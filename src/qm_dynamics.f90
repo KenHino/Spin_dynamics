@@ -359,7 +359,6 @@ module dynamics
 
                         c2 = real(dot_product(c,c), kind=dp)
                         c_m2 = real(c(sim%N_krylov)*conjg(c(sim%N_krylov)), kind=dp)
-
                         t = t+sim%dt
                         k = k+1
                     end do

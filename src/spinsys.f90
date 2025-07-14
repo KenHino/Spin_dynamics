@@ -4,24 +4,26 @@ module variables
     use stdlib_linalg, only: trace, eye
     use finer
 
-    implicit none  
+    implicit none
     private ::  check_inp, is_isotropic
     public  :: g_e, gamma_e, &
                sys_param,   &
                electron,    &
-               sim_param,   & 
-               read_inp,    & 
+               sim_param,   &
+               read_inp,    &
                electron_init
-                
+
     real(dp), parameter :: g_e = 2.002319_dp
-    real(dp), parameter :: gamma_e = 176.0_dp 
+    real(dp), parameter :: gamma_e = 176.08596_dp
+    real(dp), parameter :: gamma_1H = 0.26752218708_dp ! 1H
+    real(dp), parameter :: gamma_14N = 0.0193297792_dp ! 14N
 
     type  electron
-        ! Parameters of one electron spin Hamiltonian 
+        ! Parameters of one electron spin Hamiltonian
         real(dp)              :: g         ! g-factor
-        real(dp)              :: w         ! Larmor frequency 
+        real(dp)              :: w         ! Larmor frequency
         integer, allocatable  :: g_I(:)    ! coupled nuclei spin multiplicities
-        real(dp), allocatable :: A(:,:,:)  ! hyperfine copuling tensors    
+        real(dp), allocatable :: A(:,:,:)  ! hyperfine copuling tensors
         real(dp), allocatable :: a_iso(:)
         logical               :: isotropic ! true if all hyperfine couplings of electron are isotropic
     end type electron
@@ -34,10 +36,10 @@ module variables
         real(dp)       :: kS, kT ! recombination rate constants
         integer        :: Z1, Z2 ! sizes of individual nuclear Hilbert spaces
     end type sys_param
-    
+
     type sim_param
         character(:), allocatable :: type          ! spin state in which radical pair is formed
-        real(dp), allocatable     :: B(:)          ! magnetic fields  
+        real(dp), allocatable     :: B(:)          ! magnetic fields
         character(:), allocatable :: init_state    ! spin state in which radical pair is formed
         integer(i8)               :: seed(2)       ! Seed of rng generator
         integer                   :: N_samples     ! # of Monte Carlo samples
@@ -49,17 +51,17 @@ module variables
         integer                   :: M2            ! Number of symmetry blocks
         real(dp)                  :: block_tol     ! Tolerance for discarding symmetry blocks
         character(:), allocatable :: output_folder ! spin state in which radical pair is formed
-        integer                   :: restart       ! for symmetry calcs that need restarting    
-        logical                   :: isRestart      
+        integer                   :: restart       ! for symmetry calcs that need restarting
+        logical                   :: isRestart
     end type sim_param
 
     contains
- 
-    subroutine read_inp(filename, sys, sim) 
+
+    subroutine read_inp(filename, sys, sim)
         ! Reads spin Hamiltonian paramters from input file
         character(:), allocatable, intent(in) :: filename ! Input file
-        type(sys_param), intent(out)   :: sys  
-        type(sim_param), intent(out)   :: sim  
+        type(sys_param), intent(out)   :: sys
+        type(sim_param), intent(out)   :: sim
 
         real(dp)            :: D_tmp(9)
         character(len=1000) :: tmp
@@ -67,7 +69,7 @@ module variables
         type(file_ini)      :: fini
         logical             :: dirExists
         integer             :: err
-        
+
         integer :: i
 
         call fini%load(filename=trim(filename))
@@ -102,8 +104,8 @@ module variables
         call fini%get(section_name='simulation parameters', option_name='seed', val=sim%seed)
         call fini%get(section_name='simulation parameters', option_name='N_samples', val=sim%N_samples)
         call fini%get(section_name='simulation parameters', option_name='simulation_time', val=sim%t_end)
-        sim%t_end = (sim%t_end*gamma_e)/1000.0_dp
-        sim%dt = (sim%dt*gamma_e)/1000.0_dp
+        sim%t_end = (sim%t_end*gamma_e)/1000.0_dp  ! convert T -> mT and gamma_e is multiplied with time rather than Hamiltonian
+        sim%dt = (sim%dt*gamma_e)/1000.0_dp  ! convert T -> mT and gamma_e is multiplied with time rather than Hamiltonian
         call fini%get(section_name='simulation parameters', option_name='block_tolerance', val=sim%block_tol)
         call fini%get(section_name='simulation parameters', option_name='N_krylov', val=sim%N_krylov)
         call fini%get(section_name='simulation parameters', option_name='integrator_tolerance', val=sim%tol)
@@ -124,12 +126,12 @@ module variables
 
         call electron_init(fini, 1, sys%e1)
         call electron_init(fini, 2, sys%e2)
-        sys%Z1 = product(sys%e1%g_I) 
-        sys%Z2 = product(sys%e2%g_I) 
-        
-        sys%e1%isotropic = is_isotropic(sys%e1) 
-        sys%e2%isotropic = is_isotropic(sys%e2) 
-   
+        sys%Z1 = product(sys%e1%g_I)
+        sys%Z2 = product(sys%e2%g_I)
+
+        sys%e1%isotropic = is_isotropic(sys%e1)
+        sys%e2%isotropic = is_isotropic(sys%e2)
+
     end subroutine read_inp
 
     subroutine check_inp(fini)
@@ -160,17 +162,17 @@ module variables
 
     end subroutine check_inp
 
-    subroutine electron_init(fini, el_number, e) 
+    subroutine electron_init(fini, el_number, e)
         ! Reads electronic parameters from input file
         type(file_ini), intent(in)  :: fini      ! File handler object
-        integer, intent(in)         :: el_number ! must 
+        integer, intent(in)         :: el_number ! must
         type(electron), intent(out) :: e         ! Electron must be 1 or 2
- 
+
         integer, allocatable :: mult_I(:)
         integer, allocatable :: N_I(:)
         real(dp)             :: A_tmp(9)   ! Variable used for parsing individual hyperfines
-        character(len=20)    :: el_section 
-        character(len=10)    :: a_option 
+        character(len=20)    :: el_section
+        character(len=10)    :: a_option
         integer              :: err
         integer              :: start, finish
         integer              :: i
@@ -179,7 +181,7 @@ module variables
         el_section = 'electron '//el_section
 
         call fini%get(section_name=trim(el_section), option_name='g', val=e%g)
-       
+
         allocate(mult_I(fini%count_values(section_name=trim(el_section), option_name='I')))
         call fini%get(section_name=trim(el_section), option_name='I',val=mult_I, error=err)
 
@@ -188,8 +190,8 @@ module variables
 
         ! allocate(e%g_I(fini%count_values(section_name=trim(el_section), option_name='g_I')))
         ! call fini%get(section_name=trim(el_section), option_name='g_I',val=e%g_I, error=err)
-       
-        ! If no electron couplings are specified, the g_I and A arrays have random sizes, so we need to reallocate them to 0 
+
+        ! If no electron couplings are specified, the g_I and A arrays have random sizes, so we need to reallocate them to 0
         if (err /= 0) then
             deallocate(mult_I)
             deallocate(N_I)
@@ -219,27 +221,27 @@ module variables
         do i=1,size(e%g_I)
             write(a_option, '(I0)') i
             a_option = 'A'//a_option
-            call fini%get(section_name=trim(el_section),option_name=trim(a_option),val=A_tmp, error=err)
-            
+            call fini%get(section_name=trim(el_section), option_name=trim(a_option), val=A_tmp, error=err)
+
             if (err /= 0) then
                 print'(A,I0,A,I0, A)', 'Error: Hyperfine copuling A', i, ' for electron ', el_number, ' is missing.'
                 stop
             end if
-            
+
             e%A(i,:,:) = reshape(A_tmp, [3,3])
             e%a_iso(i) = (trace(e%A(i,:,:)))/3.0_dp
         end do
 
     end subroutine electron_init
 
-    function is_isotropic(e) 
+    function is_isotropic(e)
     ! Checks if spin system contains only isotropic hyperfine couplings
     type(electron), intent(in) :: e
-    logical                    :: is_isotropic 
+    logical                    :: is_isotropic
 
     real(dp)    :: identity(3,3)
     real(dp)    :: trA
-    
+
     integer :: i
 
     is_isotropic = .true.
