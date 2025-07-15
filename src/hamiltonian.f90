@@ -49,17 +49,6 @@ module hamiltonian
         S2m = kron_iden(2, Sm)
         S2z = kron_iden(2, Sz)
 
-        ! print*, 'Sp', Sp%data, Sp%index, size(Sp%data)
-        ! print*, 'Sm', Sm%data, Sm%index
-        ! print*, 'Sz', Sz%data, Sz%index
-        ! print*, 'S1p', S1p%data, S1p%index, S1p%nrows, S1p%ncols, S1p%nnz
-        ! print*, 'S1m', S1m%data, S1m%index
-        ! print*, 'S1z', S1z%data, S1z%index
-        ! print*, 'S2p', S2p%data, S2p%index, S2p%nrows, S2p%ncols, S2p%nnz
-        ! print*, 'S2m', S2m%data, S2m%index
-        ! print*, 'S2z', S2z%data, S2z%index
-        !stop
-
         S1pS2m = kron(Sp, Sm)
         S1mS2p = kron(Sm, Sp)
         S1zS2z = kron(Sz, Sz)
@@ -101,8 +90,6 @@ module hamiltonian
         H_coo%index(:, 1:N) = H_tmp%index
 
         ! Add off-diagonal terms of electronic Hamiltonian (S1+S2-, S1-S2+)
-        print*, sys%D(1,1), sys%D(2,2), sys%D(3,3), sys%J, delta_k
-        ! stop
         if (abs(sys%D(1,1) - sys%D(2,2)) > 1.0e-12_dp) then
             stop 'Error: sys%D(1,1) must equal sys%D(2,2) for isotropic conditions'
         end if
@@ -249,17 +236,6 @@ module hamiltonian
         S2x = kron_iden(2, Sx)
         S2y = kron_iden(2, Sy)
         S2z = kron_iden(2, Sz)
-
-        ! print*, 'Sx', Sx
-        ! print*, 'Sy', Sy
-        ! print*, 'Sz', Sz
-        ! print*, 'S1x', S1x
-        ! print*, 'S1y', S1y
-        ! print*, 'S1z', S1z
-        ! print*, 'S2x', S2x
-        ! print*, 'S2y', S2y
-        ! print*, 'S2z', S2z
-        ! stop
 
         ! Construct 4x4 electronic spin Hamiltonian
         H_el = (0.0_dp, 0.0_dp)

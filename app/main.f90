@@ -52,8 +52,8 @@ program main
         ! Calculate Larmor frequencies of both electrons in mT units
         ! sys%e1%w = (sys%e1%g/g_e)*sim%B(i)
         ! sys%e2%w = (sys%e2%g/g_e)*sim%B(i)
-        sys%e1%w = sim%B(i)
-        sys%e2%w = sim%B(i)
+        sys%e1%w = -sim%B(i)
+        sys%e2%w = -sim%B(i)
 
         write(guz,'(F0.3)') sim%B(i) ! converting integer to string using a 'internal file'
         folder = sim%output_folder // '/' // trim(guz)
